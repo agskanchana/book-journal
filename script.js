@@ -177,28 +177,44 @@ class BookJournal {
 
     async addBook() {
         if (!this.currentUser) {
-            this.showNotification('Please sign in to add books', 'error');
+            ons.notification.alert({
+                message: '🔒 Please sign in to add books',
+                title: 'Authentication Required',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
         const formData = this.getFormData();
 
-        // Updated validation to include total_pages
+        // Updated validation with Onsen UI alerts
         if (!formData.name.trim() || !formData.author.trim() || !formData.total_pages) {
-            this.showNotification('Please fill in all required fields (Book Name, Author, and Total Pages)', 'error');
+            ons.notification.alert({
+                message: '📝 Please fill in all required fields:\n• Book Name\n• Author\n• Total Pages',
+                title: 'Missing Information',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
         // Validate total pages is a positive number
         if (formData.total_pages && (isNaN(formData.total_pages) || formData.total_pages < 1)) {
-            this.showNotification('Total pages must be a valid number greater than 0', 'error');
+            ons.notification.alert({
+                message: '📖 Total pages must be a valid number greater than 0',
+                title: 'Invalid Input',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
         // Additional validation for current page vs total pages
         if (formData.status === 'Reading' && formData.current_page && formData.total_pages) {
             if (parseInt(formData.current_page) > parseInt(formData.total_pages)) {
-                this.showNotification('Current page cannot exceed total pages', 'error');
+                ons.notification.alert({
+                    message: '📄 Current page cannot exceed total pages',
+                    title: 'Invalid Page Number',
+                    buttonLabel: 'OK'
+                });
                 return;
             }
         }
@@ -317,12 +333,14 @@ class BookJournal {
         if (!this.currentUser) return;
 
         try {
-            // First, load all shared books with user's personal progress
+            // Load books that either:
+            // 1. User created, OR
+            // 2. User has reading progress for
             const { data: booksData, error: booksError } = await supabase
                 .from('shared_books')
                 .select(`
                     *,
-                    user_reading_progress!left (
+                    user_reading_progress!inner (
                         status,
                         current_page,
                         purchase_date,
@@ -380,9 +398,6 @@ class BookJournal {
                     finished_reading_at: progress.finished_reading_at || null
                 };
             });
-
-            // Ensure all creator profiles exist
-            await this.ensureCreatorProfiles(creatorIds);
 
             this.displayBooks();
             this.updateStats();
@@ -556,11 +571,7 @@ class BookJournal {
                         <button class="action-btn btn-delete" onclick="bookJournal.deleteBook(${book.id})">
                             🗑️ Delete
                         </button>
-                    ` : `
-                        <button class="action-btn btn-add" onclick="bookJournal.addToMyLibrary(${book.id})">
-                            ➕ Add to Mine
-                        </button>
-                    `}
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -582,45 +593,6 @@ class BookJournal {
 
         const currentlyReading = filteredBooks.filter(book => book.status === 'Reading');
         this.renderBooks(currentlyReading, 'currentlyReadingBooks');
-    }
-
-    async addToMyLibrary(bookId) {
-        if (!this.currentUser) {
-            this.showNotification('Please sign in to add books', 'error');
-            return;
-        }
-
-        try {
-            // Check if user already has this book in their progress
-            const { data: existingProgress } = await supabase
-                .from('user_reading_progress')
-                .select('*')
-                .eq('user_id', this.currentUser.id)
-                .eq('book_id', bookId)
-                .single();
-
-            if (existingProgress) {
-                this.showNotification('Book is already in your library', 'info');
-                return;
-            }
-
-            // Add book to user's reading progress
-            const { error } = await supabase
-                .from('user_reading_progress')
-                .insert([{
-                    user_id: this.currentUser.id,
-                    book_id: bookId,
-                    status: 'Not Read'
-                }]);
-
-            if (error) throw error;
-
-            this.showNotification('Book added to your library!', 'success');
-            this.loadBooks();
-        } catch (error) {
-            console.error('Error adding book to library:', error);
-            this.showNotification('Error adding book to library', 'error');
-        }
     }
 
     editBookProgress(id) {
@@ -777,20 +749,32 @@ class BookJournal {
 
     async updateBookProgress() {
         if (!this.currentUser) {
-            this.showNotification('Please sign in to update progress', 'error');
+            ons.notification.alert({
+                message: '🔒 Please sign in to update progress',
+                title: 'Authentication Required',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
         const currentPage = parseInt(this.getElementValue('updateCurrentPage'));
 
         if (!currentPage || currentPage < 1) {
-            this.showNotification('Please enter a valid current page', 'error');
+            ons.notification.alert({
+                message: '📄 Please enter a valid current page number',
+                title: 'Invalid Input',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
         const book = this.books.find(b => b.id === this.currentBookForUpdate);
         if (book && book.total_pages && currentPage > book.total_pages) {
-            this.showNotification('Current page cannot exceed total pages', 'error');
+            ons.notification.alert({
+                message: '📖 Current page cannot exceed total pages',
+                title: 'Invalid Page Number',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
@@ -829,18 +813,38 @@ class BookJournal {
 
     async deleteBook(id) {
         if (!this.currentUser) {
-            this.showNotification('Please sign in to delete books', 'error');
+            ons.notification.alert({
+                message: '🔒 Please sign in to delete books',
+                title: 'Authentication Required',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
         const book = this.books.find(b => b.id === id);
         if (!book || book.created_by !== this.currentUser.id) {
-            this.showNotification('You can only delete books you added', 'error');
+            ons.notification.alert({
+                message: '❌ You can only delete books you added',
+                title: 'Permission Denied',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
-        if (!confirm('Are you sure you want to delete this book? This will remove it for all users.')) return;
+        // Use Onsen UI confirm dialog
+        ons.notification.confirm({
+            message: `🗑️ Are you sure you want to delete "${book.name}"?\n\nThis will remove it permanently.`,
+            title: 'Confirm Delete',
+            buttonLabels: ['Cancel', 'Delete']
+        }).then((buttonIndex) => {
+            if (buttonIndex === 1) { // Delete button clicked
+                this.performDelete(id);
+            }
+        });
+    }
 
+    // Add this helper method for the actual deletion:
+    async performDelete(id) {
         try {
             const { error } = await supabase
                 .from('shared_books')
@@ -850,26 +854,47 @@ class BookJournal {
 
             if (error) throw error;
 
-            this.showNotification('Book deleted successfully!', 'success');
+            ons.notification.alert({
+                message: '✅ Book deleted successfully!',
+                title: 'Deleted',
+                buttonLabel: 'OK'
+            });
             this.loadBooks();
         } catch (error) {
             console.error('Error deleting book:', error);
-            this.showNotification('Error deleting book', 'error');
+            ons.notification.alert({
+                message: '❌ Error deleting book. Please try again.',
+                title: 'Delete Failed',
+                buttonLabel: 'OK'
+            });
         }
     }
 
     showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
+        // Use Onsen UI dialog instead of custom notification
+        let icon = '💬';
+        let title = 'Info';
 
-        document.body.appendChild(notification);
+        switch(type) {
+            case 'success':
+                icon = '✅';
+                title = 'Success';
+                break;
+            case 'error':
+                icon = '❌';
+                title = 'Error';
+                break;
+            case 'info':
+                icon = 'ℹ️';
+                title = 'Info';
+                break;
+        }
 
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 3000);
+        ons.notification.alert({
+            message: `${icon} ${message}`,
+            title: title,
+            buttonLabel: 'OK'
+        });
     }
 
     exportData() {
@@ -1016,7 +1041,18 @@ function showStats() {
             unread: window.bookJournal.books.filter(b => b.status === 'Not Read').length
         };
 
-        alert(`📊 Your Reading Statistics:\n\n📚 Total Books: ${stats.total}\n📖 Currently Reading: ${stats.reading}\n✅ Completed: ${stats.completed}\n🔖 To Read: ${stats.unread}`);
+        const message = `📊 Your Reading Statistics:
+
+📚 Total Books: ${stats.total}
+📖 Currently Reading: ${stats.reading}
+✅ Completed: ${stats.completed}
+🔖 To Read: ${stats.unread}`;
+
+        ons.notification.alert({
+            message: message,
+            title: 'Reading Statistics',
+            buttonLabel: 'Close'
+        });
     }
     hideUserMenu();
 }

@@ -5,6 +5,11 @@ body {
 }
 
 /* Toolbar Customization */
+.toolbar-primary {
+    background: #4285f4; /* Solid color instead of gradient */
+    color: white;
+}
+
 /*
 .toolbar-primary {
     background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
@@ -17,8 +22,8 @@ body {
 }
 
 .toolbar-button-save {
-    color: #34a853;
-    font-weight: bold;
+    /* color: #34a853; */
+    /* font-weight: bold; */
 }
 
 /* Stats Cards */
@@ -101,9 +106,9 @@ body {
 }
 
 .toggle-btn.active {
-    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+    background: #4285f4; /* Solid color instead of gradient */
     color: white;
-    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+    box-shadow: 0 1px 4px rgba(66, 133, 244, 0.3);
 }
 
 .toggle-btn:hover:not(.active) {
@@ -137,7 +142,7 @@ body {
     width: 60px;
     height: 90px;
     border-radius: 8px;
-    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+    background: #4285f4; /* Solid color instead of gradient */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -321,23 +326,47 @@ input:disabled, select:disabled {
     font-size: 1.2rem;
 }
 
+.form-group {
+    margin-bottom: 10px; /* Reduced from 15px */
+}
+
+.form-label {
+    display: block;
+    font-weight: 500; /* Reduced from 600 */
+    color: #2c3e50;
+    margin-bottom: 3px; /* Reduced from 5px */
+    font-size: 0.85rem; /* Reduced from 0.9rem */
+}
+
+.form-label[data-required="true"]::after {
+    content: " *";
+    color: #ea4335;
+}
+
+/* Reduce input/select margins */
+ons-input, ons-select {
+    margin-bottom: 8px !important; /* Reduced spacing */
+}
+
 .file-input {
     width: 100%;
-    padding: 8px;
+    padding: 6px; /* Reduced padding */
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-radius: 6px;
     background: #f8f9fa;
+    margin-bottom: 8px;
 }
 
 .textarea {
     width: 100%;
-    padding: 12px;
+    padding: 8px; /* Reduced padding */
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-radius: 6px; /* Less rounded */
     font-family: inherit;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.4;
     background: #fff;
+    margin-bottom: 8px; /* Reduced margin */
 }
 
 /* Image Preview */
@@ -389,8 +418,8 @@ input:disabled, select:disabled {
 
 /* Floating Action Button */
 .fab {
-    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
-    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
+    background: #4285f4; /* Solid color instead of gradient */
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
 }
 
 .fab:active {
@@ -405,6 +434,11 @@ ons-search-input {
 /* Modal Enhancements */
 ons-modal {
     background: rgba(0,0,0,0.5);
+}
+
+/* Update modal content padding */
+.modal-content {
+    padding: 16px !important; /* Reduced from default */
 }
 
 /* List Item Enhancements */
@@ -430,7 +464,7 @@ ons-card {
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+    background: #4285f4; /* Solid color instead of gradient */
     padding: 20px;
 }
 
@@ -457,23 +491,23 @@ ons-card {
 }
 
 .google-login-btn {
-    background: #4285f4;
+    background: #4285f4; /* Solid color instead of gradient */
     color: white;
     border: none;
-    padding: 15px 30px;
-    border-radius: 50px;
-    font-size: 1rem;
+    padding: 12px 24px; /* Reduced padding */
+    border-radius: 8px; /* Less rounded */
+    font-size: 0.9rem;
     font-weight: 500;
     width: 100%;
-    margin-bottom: 30px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+    margin-bottom: 20px; /* Reduced margin */
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.2); /* Lighter shadow */
 }
 
 .google-login-btn:hover {
     background: #3367d6;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+    transform: translateY(-1px); /* Reduced movement */
+    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
 }
 
 .login-features {
@@ -611,26 +645,109 @@ ons-card {
     }
 }
 
-/* Add this after your existing form styles: */
+/* Update this after your existing form styles: */
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 10px; /* Reduced from 15px */
 }
 
 .form-label {
     display: block;
-    font-weight: 600;
+    font-weight: 500; /* Reduced from 600 */
     color: #2c3e50;
-    margin-bottom: 5px;
+    margin-bottom: 3px; /* Reduced from 5px */
+    font-size: 0.85rem; /* Reduced from 0.9rem */
+}
+
+.form-label[data-required="true"]::after {
+    content: " *";
+    color: #ea4335;
+}
+
+/* Reduce input/select margins */
+ons-input, ons-select {
+    margin-bottom: 8px !important; /* Reduced spacing */
+}
+
+/* Update modal content padding */
+.modal-content {
+    padding: 16px !important; /* Reduced from default */
+}
+
+/* Simplify buttons - remove gradients */
+.google-login-btn {
+    background: #4285f4; /* Solid color instead of gradient */
+    color: white;
+    border: none;
+    padding: 12px 24px; /* Reduced padding */
+    border-radius: 8px; /* Less rounded */
     font-size: 0.9rem;
+    font-weight: 500;
+    width: 100%;
+    margin-bottom: 20px; /* Reduced margin */
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.2); /* Lighter shadow */
 }
 
-/* Update input validation styles */
-input:invalid {
-    border-color: #ea4335 !important;
-    box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.2) !important;
+.google-login-btn:hover {
+    background: #3367d6;
+    transform: translateY(-1px); /* Reduced movement */
+    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
 }
 
-input:valid {
-    border-color: #34a853 !important;
+/* Update toolbar to solid color */
+.toolbar-primary {
+    background: #4285f4; /* Solid color instead of gradient */
+    color: white;
+}
+
+/* Update toggle buttons */
+.toggle-btn.active {
+    background: #4285f4; /* Solid color instead of gradient */
+    color: white;
+    box-shadow: 0 1px 4px rgba(66, 133, 244, 0.3);
+}
+
+/* Update book cover */
+.book-cover {
+    background: #4285f4; /* Solid color instead of gradient */
+}
+
+/* Update FAB */
+.fab {
+    background: #4285f4; /* Solid color instead of gradient */
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+}
+
+/* Update login container */
+.login-container {
+    background: #4285f4; /* Solid color instead of gradient */
+}
+
+/* Reduce modal padding */
+ons-dialog .dialog {
+    padding: 16px;
+}
+
+/* Update textarea styling with reduced margin */
+.textarea {
+    width: 100%;
+    padding: 8px; /* Reduced padding */
+    border: 1px solid #ddd;
+    border-radius: 6px; /* Less rounded */
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    background: #fff;
+    margin-bottom: 8px; /* Reduced margin */
+}
+
+/* Compact file input */
+.file-input {
+    width: 100%;
+    padding: 6px; /* Reduced padding */
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #f8f9fa;
+    margin-bottom: 8px;
 }
