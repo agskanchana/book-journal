@@ -225,7 +225,7 @@
                 <ons-list>
                     <!-- Book Title -->
                     <div class="form-group">
-                        <label class="form-label">Book Name *</label>
+                        <label class="form-label" data-required="true">Book Name</label>
                         <ons-input
                             id="bookName"
                             type="text"
@@ -237,7 +237,7 @@
 
                     <!-- Author -->
                     <div class="form-group">
-                        <label class="form-label">Author *</label>
+                        <label class="form-label" data-required="true">Author</label>
                         <ons-input
                             id="authorName"
                             type="text"
@@ -295,38 +295,31 @@
                         </div>
                     </ons-list-item>
 
+                    <!-- Total Pages (always shown) -->
+                    <div class="form-group">
+                        <label class="form-label" data-required="true">Total Pages</label>
+                        <ons-input
+                            id="totalPages"
+                            type="number"
+                            placeholder="Enter total number of pages"
+                            min="1"
+                            required
+                            style="width: 100%; margin-bottom: 15px;">
+                        </ons-input>
+                    </div>
+
                     <!-- Current Page (shown when Reading) -->
                     <div id="currentPageGroup" style="display: none;">
-                        <ons-list-item>
-                            <div class="left">
-                                <ons-icon icon="md-bookmark-outline" class="form-icon"></ons-icon>
-                            </div>
-                            <div class="center">
-                                <ons-input
-                                    id="currentPage"
-                                    type="number"
-                                    placeholder="Current Page"
-                                    min="1"
-                                    style="width: 100%;">
-                                </ons-input>
-                            </div>
-                        </ons-list-item>
-
-                        <ons-list-item>
-                            <div class="left">
-                                <ons-icon icon="md-library-books" class="form-icon"></ons-icon>
-                            </div>
-                            <div class="center">
-                                <ons-input
-                                    id="totalPages"
-                                    type="number"
-                                    placeholder="Total Pages"
-                                    min="1"
-                                    required
-                                    style="width: 100%; margin-bottom: 15px;">
-                                </ons-input>
-                            </div>
-                        </ons-list-item>
+                        <div class="form-group">
+                            <label class="form-label">Current Page</label>
+                            <ons-input
+                                id="currentPage"
+                                type="number"
+                                placeholder="Enter current page"
+                                min="1"
+                                style="width: 100%; margin-bottom: 15px;">
+                            </ons-input>
+                        </div>
                     </div>
 
                     <!-- Summary -->

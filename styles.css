@@ -6,17 +6,17 @@ body {
 
 /* Toolbar Customization */
 .toolbar-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
     color: white;
 }
 
 .toolbar-warning {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, #ea4335 0%, #fbbc04 100%);
     color: white;
 }
 
 .toolbar-button-save {
-    color: #4CAF50;
+    color: #34a853;
     font-weight: bold;
 }
 
@@ -48,10 +48,10 @@ body {
     display: block;
 }
 
-.stat-total { color: #667eea; }
-.stat-reading { color: #f39c12; }
-.stat-completed { color: #27ae60; }
-.stat-unread { color: #e74c3c; }
+.stat-total { color: #4285f4; }
+.stat-reading { color: #fbbc04; }
+.stat-completed { color: #34a853; }
+.stat-unread { color: #ea4335; }
 
 .stat-number {
     font-size: 1.8rem;
@@ -73,7 +73,7 @@ body {
     font-weight: 600;
     margin: 20px 0 15px;
     padding-left: 8px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #4285f4;
 }
 
 /* Section Toggle */
@@ -100,9 +100,9 @@ body {
 }
 
 .toggle-btn.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
     color: white;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
 }
 
 .toggle-btn:hover:not(.active) {
@@ -136,7 +136,7 @@ body {
     width: 60px;
     height: 90px;
     border-radius: 8px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -201,7 +201,7 @@ body {
 }
 
 .book-meta small[data-added-by-you] {
-    color: #667eea;
+    color: #4285f4;
     font-weight: 500;
 }
 
@@ -227,21 +227,21 @@ body {
 }
 
 .status-not-read {
-    background: rgba(231, 76, 60, 0.1);
-    color: #e74c3c;
-    border: 1px solid rgba(231, 76, 60, 0.3);
+    background: rgba(234, 67, 53, 0.1);
+    color: #ea4335;
+    border: 1px solid rgba(234, 67, 53, 0.3);
 }
 
 .status-reading {
-    background: rgba(243, 156, 18, 0.1);
-    color: #f39c12;
-    border: 1px solid rgba(243, 156, 18, 0.3);
+    background: rgba(251, 188, 4, 0.1);
+    color: #fbbc04;
+    border: 1px solid rgba(251, 188, 4, 0.3);
 }
 
 .status-read {
-    background: rgba(39, 174, 96, 0.1);
-    color: #27ae60;
-    border: 1px solid rgba(39, 174, 96, 0.3);
+    background: rgba(52, 168, 83, 0.1);
+    color: #34a853;
+    border: 1px solid rgba(52, 168, 83, 0.3);
 }
 
 /* Progress Info */
@@ -280,27 +280,27 @@ body {
 }
 
 .btn-progress {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
+    background: rgba(251, 188, 4, 0.1);
+    color: #fbbc04;
+    border: 1px solid rgba(251, 188, 4, 0.3);
 }
 
 .btn-edit {
-    background: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
+    background: rgba(66, 133, 244, 0.1);
+    color: #4285f4;
+    border: 1px solid rgba(66, 133, 244, 0.3);
 }
 
 .btn-delete {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+    background: rgba(234, 67, 53, 0.1);
+    color: #ea4335;
+    border: 1px solid rgba(234, 67, 53, 0.3);
 }
 
 .btn-add {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
+    background: rgba(52, 168, 83, 0.1);
+    color: #34a853;
+    border: 1px solid rgba(52, 168, 83, 0.3);
 }
 
 .action-btn:active {
@@ -316,7 +316,7 @@ input:disabled, select:disabled {
 
 /* Form Styling */
 .form-icon {
-    color: #667eea;
+    color: #4285f4;
     font-size: 1.2rem;
 }
 
@@ -358,8 +358,8 @@ input:disabled, select:disabled {
 }
 
 .tab.active {
-    color: #667eea;
-    border-bottom: 2px solid #667eea;
+    color: #4285f4;
+    border-bottom: 2px solid #4285f4;
 }
 
 /* Empty State */
@@ -388,8 +388,8 @@ input:disabled, select:disabled {
 
 /* Floating Action Button */
 .fab {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
 }
 
 .fab:active {
@@ -429,7 +429,7 @@ ons-card {
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
     padding: 20px;
 }
 
@@ -489,7 +489,7 @@ ons-card {
 }
 
 .feature-icon {
-    color: #667eea;
+    color: #4285f4;
     margin-right: 12px;
     font-size: 1.2rem;
 }
@@ -528,7 +528,7 @@ ons-card {
     height: 80px;
     border-radius: 50%;
     margin-bottom: 15px;
-    border: 3px solid #667eea;
+    border: 3px solid #4285f4;
 }
 
 .user-profile h3 {
@@ -543,7 +543,7 @@ ons-card {
 }
 
 .menu-icon {
-    color: #667eea;
+    color: #4285f4;
     font-size: 1.2rem;
 }
 
@@ -585,18 +585,18 @@ ons-card {
 }
 
 .notification.success {
-    border-left: 4px solid #27ae60;
-    color: #27ae60;
+    border-left: 4px solid #34a853;
+    color: #34a853;
 }
 
 .notification.error {
-    border-left: 4px solid #e74c3c;
-    color: #e74c3c;
+    border-left: 4px solid #ea4335;
+    color: #ea4335;
 }
 
 .notification.info {
-    border-left: 4px solid #3498db;
-    color: #3498db;
+    border-left: 4px solid #4285f4;
+    color: #4285f4;
 }
 
 @keyframes slideDown {
@@ -624,23 +624,12 @@ ons-card {
     font-size: 0.9rem;
 }
 
-.form-label::after {
-    content: "";
-}
-
-/* Style for required field indicator */
-.form-label:has(+ input[required])::after,
-.form-label:has(+ ons-input[required])::after {
-    content: " *";
-    color: #e74c3c;
-}
-
 /* Update input validation styles */
 input:invalid {
-    border-color: #e74c3c !important;
-    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2) !important;
+    border-color: #ea4335 !important;
+    box-shadow: 0 0 0 2px rgba(234, 67, 53, 0.2) !important;
 }
 
 input:valid {
-    border-color: #27ae60 !important;
+    border-color: #34a853 !important;
 }
