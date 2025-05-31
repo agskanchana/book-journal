@@ -5,10 +5,11 @@ body {
 }
 
 /* Toolbar Customization */
+/*
 .toolbar-primary {
     background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
     color: white;
-}
+}*/
 
 .toolbar-warning {
     background: linear-gradient(135deg, #ea4335 0%, #fbbc04 100%);
