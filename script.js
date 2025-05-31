@@ -15,6 +15,7 @@ class BookJournal {
         this.books = [];
         this.editingBookId = null;
         this.currentBookForUpdate = null;
+        this.currentUser = null;
         this.init();
     }
 
@@ -22,12 +23,108 @@ class BookJournal {
         // Wait for DOM to be ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
+                this.setupAuth();
                 this.setupEventListeners();
-                this.loadBooks();
             });
         } else {
+            this.setupAuth();
             this.setupEventListeners();
+        }
+    }
+
+    async setupAuth() {
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+            this.currentUser = session.user;
+            this.showMainApp();
             this.loadBooks();
+        } else {
+            this.showLoginPage();
+        }
+
+        // Listen for auth changes
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                this.currentUser = session.user;
+                await this.createUserProfile(session.user);
+                this.showMainApp();
+                this.loadBooks();
+            } else if (event === 'SIGNED_OUT') {
+                this.currentUser = null;
+                this.books = [];
+                this.showLoginPage();
+            }
+        });
+    }
+
+    async createUserProfile(user) {
+        try {
+            // Check if profile exists
+            const { data: existingProfile } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (!existingProfile) {
+                // Create new profile
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .insert([{
+                        id: user.id,
+                        email: user.email,
+                        full_name: user.user_metadata?.full_name || user.email,
+                        avatar_url: user.user_metadata?.avatar_url || ''
+                    }]);
+
+                if (error) {
+                    console.error('Error creating user profile:', error);
+                }
+            }
+        } catch (error) {
+            console.error('Error with user profile:', error);
+        }
+    }
+
+    showLoginPage() {
+        document.getElementById('loginPage').style.display = 'block';
+        document.getElementById('mainPage').style.display = 'none';
+    }
+
+    showMainApp() {
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('mainPage').style.display = 'block';
+        this.updateUserInfo();
+    }
+
+    updateUserInfo() {
+        if (this.currentUser) {
+            const userName = this.currentUser.user_metadata?.full_name || this.currentUser.email;
+            const userAvatar = this.currentUser.user_metadata?.avatar_url || '';
+
+            // Update toolbar user info
+            const userNameEl = document.getElementById('userName');
+            const userAvatarEl = document.getElementById('userAvatar');
+
+            if (userNameEl) userNameEl.textContent = userName.split(' ')[0] || 'User';
+            if (userAvatarEl) {
+                userAvatarEl.src = userAvatar;
+                userAvatarEl.style.display = userAvatar ? 'block' : 'none';
+            }
+
+            // Update profile modal
+            const profileNameEl = document.getElementById('profileName');
+            const profileEmailEl = document.getElementById('profileEmail');
+            const profileAvatarEl = document.getElementById('profileAvatar');
+
+            if (profileNameEl) profileNameEl.textContent = userName;
+            if (profileEmailEl) profileEmailEl.textContent = this.currentUser.email;
+            if (profileAvatarEl) {
+                profileAvatarEl.src = userAvatar;
+                profileAvatarEl.style.display = userAvatar ? 'block' : 'none';
+            }
         }
     }
 
@@ -90,6 +187,11 @@ class BookJournal {
     }
 
     async addBook() {
+        if (!this.currentUser) {
+            this.showNotification('Please sign in to add books', 'error');
+            return;
+        }
+
         const formData = this.getFormData();
 
         if (!formData.name.trim() || !formData.author.trim()) {
@@ -106,6 +208,9 @@ class BookJournal {
             }
 
             delete formData.coverFile;
+
+            // Add user_id to the book data
+            formData.user_id = this.currentUser.id;
 
             const { data, error } = await supabase
                 .from('books')
@@ -185,10 +290,13 @@ class BookJournal {
     }
 
     async loadBooks() {
+        if (!this.currentUser) return;
+
         try {
             const { data, error } = await supabase
                 .from('books')
                 .select('*')
+                .eq('user_id', this.currentUser.id) // Only get current user's books
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -249,8 +357,8 @@ class BookJournal {
 
         if (books.length === 0) {
             const emptyMessage = containerId === 'currentlyReadingBooks'
-                ? 'No books currently being read'
-                : 'No books in your library yet';
+                ? 'No books currently being read. Start reading something new!'
+                : 'No books in your library yet. Add your first book to get started!';
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -312,14 +420,14 @@ class BookJournal {
                     </div>
                     ${book.status === 'Reading' ? `
                         <button class="action-btn btn-progress" onclick="bookJournal.openProgressModal(${book.id})">
-                            Update Progress
+                            📊 Progress
                         </button>
                     ` : ''}
                     <button class="action-btn btn-edit" onclick="bookJournal.editBook(${book.id})">
-                        Edit
+                        ✏️ Edit
                     </button>
                     <button class="action-btn btn-delete" onclick="bookJournal.deleteBook(${book.id})">
-                        Delete
+                        🗑️ Delete
                     </button>
                 </div>
             </div>
@@ -334,10 +442,15 @@ class BookJournal {
 
         const filteredBooks = this.books.filter(book =>
             book.name.toLowerCase().includes(query.toLowerCase()) ||
-            book.author.toLowerCase().includes(query.toLowerCase())
+            book.author.toLowerCase().includes(query.toLowerCase()) ||
+            (book.category && book.category.toLowerCase().includes(query.toLowerCase()))
         );
 
         this.renderBooks(filteredBooks, 'allBooks');
+
+        // Also filter reading books if we're showing library section
+        const currentlyReading = filteredBooks.filter(book => book.status === 'Reading');
+        this.renderBooks(currentlyReading, 'currentlyReadingBooks');
     }
 
     editBook(id) {
@@ -377,6 +490,11 @@ class BookJournal {
     }
 
     async saveEditedBook() {
+        if (!this.currentUser) {
+            this.showNotification('Please sign in to edit books', 'error');
+            return;
+        }
+
         const formData = this.getEditFormData();
 
         if (!formData.name.trim() || !formData.author.trim()) {
@@ -389,6 +507,7 @@ class BookJournal {
                 .from('books')
                 .update(formData)
                 .eq('id', this.editingBookId)
+                .eq('user_id', this.currentUser.id) // Ensure user can only edit their own books
                 .select();
 
             if (error) throw error;
@@ -436,6 +555,11 @@ class BookJournal {
     }
 
     async updateBookProgress() {
+        if (!this.currentUser) {
+            this.showNotification('Please sign in to update progress', 'error');
+            return;
+        }
+
         const currentPage = parseInt(this.getElementValue('updateCurrentPage'));
         const totalPages = parseInt(this.getElementValue('updateTotalPages'));
 
@@ -465,12 +589,13 @@ class BookJournal {
                 .from('books')
                 .update(updateData)
                 .eq('id', this.currentBookForUpdate)
+                .eq('user_id', this.currentUser.id) // Ensure user can only update their own books
                 .select();
 
             if (error) throw error;
 
             this.showNotification(
-                updateData.status === 'Read' ? 'Book marked as completed!' : 'Progress updated!',
+                updateData.status === 'Read' ? '🎉 Book completed!' : '📊 Progress updated!',
                 'success'
             );
 
@@ -483,13 +608,19 @@ class BookJournal {
     }
 
     async deleteBook(id) {
+        if (!this.currentUser) {
+            this.showNotification('Please sign in to delete books', 'error');
+            return;
+        }
+
         if (!confirm('Are you sure you want to delete this book?')) return;
 
         try {
             const { error } = await supabase
                 .from('books')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', this.currentUser.id); // Ensure user can only delete their own books
 
             if (error) throw error;
 
@@ -516,6 +647,49 @@ class BookJournal {
                 notification.parentNode.removeChild(notification);
             }
         }, 3000);
+    }
+
+    // Export user's books data
+    exportData() {
+        const dataStr = JSON.stringify(this.books, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = 'my-books.json';
+        link.click();
+
+        this.showNotification('Books exported successfully!', 'success');
+        hideUserMenu();
+    }
+}
+
+// Authentication Functions
+async function signInWithGoogle() {
+    try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin
+            }
+        });
+
+        if (error) throw error;
+    } catch (error) {
+        console.error('Error signing in:', error);
+        alert('Error signing in. Please try again.');
+    }
+}
+
+async function signOut() {
+    try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+
+        hideUserMenu();
+    } catch (error) {
+        console.error('Error signing out:', error);
+        alert('Error signing out. Please try again.');
     }
 }
 
@@ -544,6 +718,20 @@ function hideEditBookModal() {
 
 function hideProgressModal() {
     const modal = document.getElementById('progressModal');
+    if (modal) {
+        modal.hide();
+    }
+}
+
+function showUserMenu() {
+    const modal = document.getElementById('userMenuModal');
+    if (modal) {
+        modal.show();
+    }
+}
+
+function hideUserMenu() {
+    const modal = document.getElementById('userMenuModal');
     if (modal) {
         modal.hide();
     }
@@ -589,6 +777,27 @@ function showLibrarySection() {
     if (librarySection) librarySection.style.display = 'block';
     if (readingToggle) readingToggle.classList.remove('active');
     if (libraryToggle) libraryToggle.classList.add('active');
+}
+
+// User Menu Functions
+function showStats() {
+    if (window.bookJournal && window.bookJournal.books) {
+        const stats = {
+            total: window.bookJournal.books.length,
+            reading: window.bookJournal.books.filter(b => b.status === 'Reading').length,
+            completed: window.bookJournal.books.filter(b => b.status === 'Read').length,
+            unread: window.bookJournal.books.filter(b => b.status === 'Not Read').length
+        };
+
+        alert(`📊 Your Reading Statistics:\n\n📚 Total Books: ${stats.total}\n📖 Currently Reading: ${stats.reading}\n✅ Completed: ${stats.completed}\n🔖 To Read: ${stats.unread}`);
+    }
+    hideUserMenu();
+}
+
+function exportData() {
+    if (window.bookJournal) {
+        window.bookJournal.exportData();
+    }
 }
 
 // Book Functions

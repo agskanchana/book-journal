@@ -13,9 +13,50 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <ons-page>
+    <!-- Login Page -->
+    <ons-page id="loginPage" style="display: none;">
+        <div class="login-container">
+            <div class="login-content">
+                <div class="login-header">
+                    <h1>📚 Book Journal</h1>
+                    <p>Your personal reading companion</p>
+                </div>
+
+                <div class="login-form">
+                    <ons-button class="google-login-btn" onclick="signInWithGoogle()">
+                        <ons-icon icon="fa-google" style="margin-right: 8px;"></ons-icon>
+                        Continue with Google
+                    </ons-button>
+                </div>
+
+                <div class="login-features">
+                    <div class="feature">
+                        <ons-icon icon="md-bookmark" class="feature-icon"></ons-icon>
+                        <span>Track your reading progress</span>
+                    </div>
+                    <div class="feature">
+                        <ons-icon icon="md-library-books" class="feature-icon"></ons-icon>
+                        <span>Organize your personal library</span>
+                    </div>
+                    <div class="feature">
+                        <ons-icon icon="md-sync" class="feature-icon"></ons-icon>
+                        <span>Sync across all devices</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ons-page>
+
+    <!-- Main App Page -->
+    <ons-page id="mainPage" style="display: none;">
         <!-- Navigation -->
         <ons-toolbar class="toolbar-primary">
+            <div class="left">
+                <div class="user-info" onclick="showUserMenu()">
+                    <img id="userAvatar" src="" alt="User" class="user-avatar">
+                    <span id="userName">User</span>
+                </div>
+            </div>
             <div class="center">📚 Book Journal</div>
             <div class="right">
                 <ons-toolbar-button onclick="showAddBookModal()">
@@ -111,6 +152,57 @@
             <ons-icon icon="md-plus"></ons-icon>
         </ons-fab>
     </ons-page>
+
+    <!-- User Menu Modal -->
+    <ons-modal id="userMenuModal">
+        <ons-page>
+            <ons-toolbar class="toolbar-primary">
+                <div class="left">
+                    <ons-toolbar-button onclick="hideUserMenu()">
+                        <ons-icon icon="md-close"></ons-icon>
+                    </ons-toolbar-button>
+                </div>
+                <div class="center">Profile</div>
+            </ons-toolbar>
+
+            <div style="padding: 16px;">
+                <div class="user-profile">
+                    <img id="profileAvatar" src="" alt="Profile" class="profile-avatar">
+                    <h3 id="profileName">User Name</h3>
+                    <p id="profileEmail">user@email.com</p>
+                </div>
+
+                <ons-list>
+                    <ons-list-item onclick="showStats()">
+                        <div class="left">
+                            <ons-icon icon="md-trending-up" class="menu-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            Reading Statistics
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item onclick="exportData()">
+                        <div class="left">
+                            <ons-icon icon="md-download" class="menu-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            Export My Books
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item onclick="signOut()">
+                        <div class="left">
+                            <ons-icon icon="md-exit-to-app" class="menu-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            Sign Out
+                        </div>
+                    </ons-list-item>
+                </ons-list>
+            </div>
+        </ons-page>
+    </ons-modal>
 
     <!-- Add Book Modal -->
     <ons-modal id="addBookModal">
@@ -493,6 +585,7 @@
     <script src="https://unpkg.com/onsenui/js/onsenui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://widget.cloudinary.com/v2.0/global/all.js"></script>
+    <script src="https://kit.fontawesome.com/81356f0d9c.js" crossorigin="anonymous"></script>
     <script src="script.js"></script>
 </body>
 </html>
