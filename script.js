@@ -183,9 +183,24 @@ class BookJournal {
 
         const formData = this.getFormData();
 
-        if (!formData.name.trim() || !formData.author.trim()) {
-            this.showNotification('Please fill in required fields', 'error');
+        // Updated validation to include total_pages
+        if (!formData.name.trim() || !formData.author.trim() || !formData.total_pages) {
+            this.showNotification('Please fill in all required fields (Book Name, Author, and Total Pages)', 'error');
             return;
+        }
+
+        // Validate total pages is a positive number
+        if (formData.total_pages && (isNaN(formData.total_pages) || formData.total_pages < 1)) {
+            this.showNotification('Total pages must be a valid number greater than 0', 'error');
+            return;
+        }
+
+        // Additional validation for current page vs total pages
+        if (formData.status === 'Reading' && formData.current_page && formData.total_pages) {
+            if (parseInt(formData.current_page) > parseInt(formData.total_pages)) {
+                this.showNotification('Current page cannot exceed total pages', 'error');
+                return;
+            }
         }
 
         try {
@@ -203,7 +218,7 @@ class BookJournal {
                 author: formData.author,
                 category: formData.category,
                 summary: formData.summary,
-                total_pages: formData.total_pages,
+                total_pages: parseInt(formData.total_pages), // Ensure it's stored as integer
                 cover_url: cover_url,
                 created_by: this.currentUser.id
             };
@@ -248,7 +263,7 @@ class BookJournal {
             purchase_date: this.getElementValue('purchaseDate') || null,
             status: this.getElementValue('status'),
             current_page: this.getElementValue('currentPage') || null,
-            total_pages: this.getElementValue('totalPages') || null,
+            total_pages: this.getElementValue('totalPages') || null, // This is now required
             category: this.getElementValue('category') || null,
             summary: this.getElementValue('summary') || null,
             coverFile: document.getElementById('bookCover')?.files[0] || null

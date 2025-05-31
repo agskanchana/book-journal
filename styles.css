@@ -609,4 +609,38 @@ ons-card {
         transform: translate(-50%, 0);
     }
 }
-/* .here-wego-again */
+
+/* Add this after your existing form styles: */
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.form-label::after {
+    content: "";
+}
+
+/* Style for required field indicator */
+.form-label:has(+ input[required])::after,
+.form-label:has(+ ons-input[required])::after {
+    content: " *";
+    color: #e74c3c;
+}
+
+/* Update input validation styles */
+input:invalid {
+    border-color: #e74c3c !important;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2) !important;
+}
+
+input:valid {
+    border-color: #27ae60 !important;
+}
