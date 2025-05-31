@@ -439,10 +439,12 @@ class BookJournal {
     }
 
     updateStats() {
-        // Only count books that the user is actively tracking
+        // Total Books = All books in the shared library (added by all users)
+        const totalBooks = this.books.length;
+
+        // Other stats = Only books that the user is actively tracking
         const trackedBooks = this.books.filter(book => book.hasProgress || book.created_by === this.currentUser.id);
 
-        const totalBooks = trackedBooks.length;
         const readingBooks = trackedBooks.filter(book => book.status === 'Reading').length;
         const completedBooks = trackedBooks.filter(book => book.status === 'Read').length;
         const unreadBooks = trackedBooks.filter(book => book.status === 'Not Read').length;
@@ -1102,16 +1104,28 @@ function showLibrarySection() {
 // User Menu Functions
 function showStats() {
     if (window.bookJournal && window.bookJournal.books) {
+        // Total books = all books in shared library
+        const totalBooks = window.bookJournal.books.length;
+
+        // Personal stats = only tracked books
+        const trackedBooks = window.bookJournal.books.filter(book =>
+            book.hasProgress || book.created_by === window.bookJournal.currentUser.id
+        );
+
         const stats = {
-            total: window.bookJournal.books.length,
-            reading: window.bookJournal.books.filter(b => b.status === 'Reading').length,
-            completed: window.bookJournal.books.filter(b => b.status === 'Read').length,
-            unread: window.bookJournal.books.filter(b => b.status === 'Not Read').length
+            total: totalBooks,
+            reading: trackedBooks.filter(b => b.status === 'Reading').length,
+            completed: trackedBooks.filter(b => b.status === 'Read').length,
+            unread: trackedBooks.filter(b => b.status === 'Not Read').length,
+            tracking: trackedBooks.length
         };
 
         const message = `📊 Your Reading Statistics:
 
-📚 Total Books: ${stats.total}
+📚 Total Books in Library: ${stats.total}
+📖 Books You're Tracking: ${stats.tracking}
+
+Your Personal Progress:
 📖 Currently Reading: ${stats.reading}
 ✅ Completed: ${stats.completed}
 🔖 To Read: ${stats.unread}`;
