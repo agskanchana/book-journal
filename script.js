@@ -442,17 +442,24 @@ class BookJournal {
         // Total Books = All books in the shared library (added by all users)
         const totalBooks = this.books.length;
 
-        // Other stats = Only books that the user is actively tracking
+        // Books that the user is actively tracking
         const trackedBooks = this.books.filter(book => book.hasProgress || book.created_by === this.currentUser.id);
 
+        // Books that user hasn't started tracking yet (available to read)
+        const untrackedBooks = this.books.filter(book => !book.hasProgress && book.created_by !== this.currentUser.id);
+
+        // Personal reading progress
         const readingBooks = trackedBooks.filter(book => book.status === 'Reading').length;
         const completedBooks = trackedBooks.filter(book => book.status === 'Read').length;
-        const unreadBooks = trackedBooks.filter(book => book.status === 'Not Read').length;
+
+        // Personal "Not Read" + All untracked books in library
+        const personalNotRead = trackedBooks.filter(book => book.status === 'Not Read').length;
+        const toReadBooks = personalNotRead + untrackedBooks.length;
 
         this.animateNumber('totalBooks', totalBooks);
         this.animateNumber('readingBooks', readingBooks);
         this.animateNumber('completedBooks', completedBooks);
-        this.animateNumber('unreadBooks', unreadBooks);
+        this.animateNumber('unreadBooks', toReadBooks);
     }
 
     animateNumber(elementId, targetNumber) {
@@ -1107,28 +1114,40 @@ function showStats() {
         // Total books = all books in shared library
         const totalBooks = window.bookJournal.books.length;
 
-        // Personal stats = only tracked books
+        // Books that user is tracking
         const trackedBooks = window.bookJournal.books.filter(book =>
             book.hasProgress || book.created_by === window.bookJournal.currentUser.id
         );
+
+        // Books that user hasn't started tracking yet
+        const untrackedBooks = window.bookJournal.books.filter(book =>
+            !book.hasProgress && book.created_by !== window.bookJournal.currentUser.id
+        );
+
+        const personalNotRead = trackedBooks.filter(b => b.status === 'Not Read').length;
+        const toReadBooks = personalNotRead + untrackedBooks.length;
 
         const stats = {
             total: totalBooks,
             reading: trackedBooks.filter(b => b.status === 'Reading').length,
             completed: trackedBooks.filter(b => b.status === 'Read').length,
-            unread: trackedBooks.filter(b => b.status === 'Not Read').length,
-            tracking: trackedBooks.length
+            unread: toReadBooks,
+            tracking: trackedBooks.length,
+            available: untrackedBooks.length
         };
 
         const message = `📊 Your Reading Statistics:
 
 📚 Total Books in Library: ${stats.total}
 📖 Books You're Tracking: ${stats.tracking}
+📚 Available to Start: ${stats.available}
 
 Your Personal Progress:
 📖 Currently Reading: ${stats.reading}
 ✅ Completed: ${stats.completed}
-🔖 To Read: ${stats.unread}`;
+🔖 To Read: ${stats.unread}
+   └─ Your "Not Read": ${personalNotRead}
+   └─ Available Books: ${stats.available}`;
 
         ons.notification.alert({
             message: message,
