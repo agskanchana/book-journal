@@ -58,25 +58,24 @@ class BookJournal {
 
     async createUserProfile(user) {
         try {
-            const { data: existingProfile } = await supabase
+            // Use upsert (insert or update) to handle existing profiles
+            const { error } = await supabase
                 .from('user_profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+                .upsert([{
+                    id: user.id,
+                    email: user.email,
+                    full_name: user.user_metadata?.full_name ||
+                              user.user_metadata?.name ||
+                              user.email.split('@')[0],
+                    avatar_url: user.user_metadata?.avatar_url ||
+                               user.user_metadata?.picture || ''
+                }], {
+                    onConflict: 'id',
+                    ignoreDuplicates: false
+                });
 
-            if (!existingProfile) {
-                const { error } = await supabase
-                    .from('user_profiles')
-                    .insert([{
-                        id: user.id,
-                        email: user.email,
-                        full_name: user.user_metadata?.full_name || user.email,
-                        avatar_url: user.user_metadata?.avatar_url || ''
-                    }]);
-
-                if (error) {
-                    console.error('Error creating user profile:', error);
-                }
+            if (error) {
+                console.error('Error creating/updating user profile:', error);
             }
         } catch (error) {
             console.error('Error with user profile:', error);
