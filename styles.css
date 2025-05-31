@@ -4,11 +4,7 @@ body {
     background-color: #f5f7fa;
 }
 
-/* Toolbar Customization */
-.toolbar-primary {
-    background: #4285f4; /* Solid color instead of gradient */
-    color: white;
-}
+
 
 /*
 .toolbar-primary {
@@ -304,6 +300,12 @@ body {
 }
 
 .btn-add {
+    background: rgba(52, 168, 83, 0.1);
+    color: #34a853;
+    border: 1px solid rgba(52, 168, 83, 0.3);
+}
+
+.btn-start {
     background: rgba(52, 168, 83, 0.1);
     color: #34a853;
     border: 1px solid rgba(52, 168, 83, 0.3);

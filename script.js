@@ -333,14 +333,12 @@ class BookJournal {
         if (!this.currentUser) return;
 
         try {
-            // Load books that either:
-            // 1. User created, OR
-            // 2. User has reading progress for
+            // Load ALL shared books with user's personal progress (if any)
             const { data: booksData, error: booksError } = await supabase
                 .from('shared_books')
                 .select(`
                     *,
-                    user_reading_progress!inner (
+                    user_reading_progress!left (
                         status,
                         current_page,
                         purchase_date,
@@ -389,13 +387,15 @@ class BookJournal {
                     creator_name: creator.full_name ||
                                  (creator.email ? creator.email.split('@')[0] : null) ||
                                  'Community Member',
-                    // User-specific data
+                    // User-specific data (will be null/default if user hasn't started tracking)
                     status: progress.status || 'Not Read',
                     current_page: progress.current_page || null,
                     purchase_date: progress.purchase_date || null,
                     personal_notes: progress.personal_notes || null,
                     started_reading_at: progress.started_reading_at || null,
-                    finished_reading_at: progress.finished_reading_at || null
+                    finished_reading_at: progress.finished_reading_at || null,
+                    // Flag to indicate if user has started tracking this book
+                    hasProgress: !!progress.status
                 };
             });
 
@@ -439,10 +439,13 @@ class BookJournal {
     }
 
     updateStats() {
-        const totalBooks = this.books.length;
-        const readingBooks = this.books.filter(book => book.status === 'Reading').length;
-        const completedBooks = this.books.filter(book => book.status === 'Read').length;
-        const unreadBooks = this.books.filter(book => book.status === 'Not Read').length;
+        // Only count books that the user is actively tracking
+        const trackedBooks = this.books.filter(book => book.hasProgress || book.created_by === this.currentUser.id);
+
+        const totalBooks = trackedBooks.length;
+        const readingBooks = trackedBooks.filter(book => book.status === 'Reading').length;
+        const completedBooks = trackedBooks.filter(book => book.status === 'Read').length;
+        const unreadBooks = trackedBooks.filter(book => book.status === 'Not Read').length;
 
         this.animateNumber('totalBooks', totalBooks);
         this.animateNumber('readingBooks', readingBooks);
@@ -535,6 +538,22 @@ class BookJournal {
              <small>✨ Added by you</small>
            </div>`;
 
+        // Show different buttons based on whether user has started tracking or owns the book
+        const actionButtons = book.created_by === this.currentUser.id
+            ? `<button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
+                   ✏️ My Progress
+               </button>
+               <button class="action-btn btn-delete" onclick="bookJournal.deleteBook(${book.id})">
+                   🗑️ Delete
+               </button>`
+            : book.hasProgress
+            ? `<button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
+                   ✏️ My Progress
+               </button>`
+            : `<button class="action-btn btn-start" onclick="bookJournal.startTrackingBook(${book.id})">
+                   📖 Start Reading
+               </button>`;
+
         return `
             <div class="book-card">
                 <div class="book-card-content">
@@ -564,14 +583,7 @@ class BookJournal {
                             📊 Progress
                         </button>
                     ` : ''}
-                    <button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
-                        ✏️ My Progress
-                    </button>
-                    ${book.created_by === this.currentUser.id ? `
-                        <button class="action-btn btn-delete" onclick="bookJournal.deleteBook(${book.id})">
-                            🗑️ Delete
-                        </button>
-                    ` : ''}
+                    ${actionButtons}
                 </div>
             </div>
         `;
@@ -908,6 +920,62 @@ class BookJournal {
 
         this.showNotification('Reading progress exported successfully!', 'success');
         hideUserMenu();
+    }
+
+    async startTrackingBook(bookId) {
+        if (!this.currentUser) {
+            ons.notification.alert({
+                message: '🔒 Please sign in to start tracking books',
+                title: 'Authentication Required',
+                buttonLabel: 'OK'
+            });
+            return;
+        }
+
+        try {
+            // Check if user already has progress for this book
+            const { data: existingProgress } = await supabase
+                .from('user_reading_progress')
+                .select('*')
+                .eq('user_id', this.currentUser.id)
+                .eq('book_id', bookId)
+                .single();
+
+            if (existingProgress) {
+                ons.notification.alert({
+                    message: 'ℹ️ You are already tracking this book',
+                    title: 'Already Tracking',
+                    buttonLabel: 'OK'
+                });
+                return;
+            }
+
+            // Create new progress record with "Not Read" status
+            const { error } = await supabase
+                .from('user_reading_progress')
+                .insert([{
+                    user_id: this.currentUser.id,
+                    book_id: bookId,
+                    status: 'Not Read'
+                }]);
+
+            if (error) throw error;
+
+            ons.notification.alert({
+                message: '✅ Started tracking this book! You can now update your progress.',
+                title: 'Tracking Started',
+                buttonLabel: 'OK'
+            });
+
+            this.loadBooks();
+        } catch (error) {
+            console.error('Error starting to track book:', error);
+            ons.notification.alert({
+                message: '❌ Error starting to track book. Please try again.',
+                title: 'Error',
+                buttonLabel: 'OK'
+            });
+        }
     }
 }
 
