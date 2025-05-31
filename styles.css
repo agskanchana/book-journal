@@ -699,8 +699,7 @@ ons-input, ons-select {
 
 /* Update toolbar to solid color */
 .toolbar-primary {
-    background: #4285f4; /* Solid color instead of gradient */
-    color: white;
+
 }
 
 /* Update toggle buttons */
