@@ -3,95 +3,494 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Journal</title>
+    <title>📚 Book Journal</title>
+
+    <!-- Onsen UI CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsenui.css">
+    <link rel="stylesheet" href="https://unpkg.com/onsenui/css/onsen-css-components.min.css">
+
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📚 My Book Journal</h1>
-        </header>
+    <ons-page>
+        <!-- Navigation -->
+        <ons-toolbar class="toolbar-primary">
+            <div class="center">📚 Book Journal</div>
+            <div class="right">
+                <ons-toolbar-button onclick="showAddBookModal()">
+                    <ons-icon icon="md-plus"></ons-icon>
+                </ons-toolbar-button>
+            </div>
+        </ons-toolbar>
 
-        <main>
-            <!-- Add Book Form -->
-            <section class="add-book-section">
-                <h2>Add New Book</h2>
-                <form id="bookForm" class="book-form">
-                    <div class="form-group">
-                        <label for="bookName">Book Name *</label>
-                        <input type="text" id="bookName" required>
-                    </div>
+        <!-- Main Content -->
+        <div style="padding: 16px;">
 
-                    <div class="form-group">
-                        <label for="authorName">Author Name *</label>
-                        <input type="text" id="authorName" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="purchaseDate">Purchase Date</label>
-                        <input type="date" id="purchaseDate">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="status">Status</label>
-                        <select id="status">
-                            <option value="Not Read">Not Read</option>
-                            <option value="Reading">Reading</option>
-                            <option value="Read">Read</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" id="currentPageGroup" style="display: none;">
-                        <label for="currentPage">Current Page</label>
-                        <input type="number" id="currentPage" min="1">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="category">Category</label>
-                        <select id="category">
-                            <option value="">Select Genre</option>
-                            <option value="Fiction">Fiction</option>
-                            <option value="Non-Fiction">Non-Fiction</option>
-                            <option value="Mystery">Mystery</option>
-                            <option value="Romance">Romance</option>
-                            <option value="Sci-Fi">Science Fiction</option>
-                            <option value="Fantasy">Fantasy</option>
-                            <option value="Biography">Biography</option>
-                            <option value="History">History</option>
-                            <option value="Self-Help">Self-Help</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="bookCover">Book Cover</label>
-                        <input type="file" id="bookCover" accept="image/*">
-                        <div id="imagePreview"></div>
-                    </div>
-
-                    <button type="submit">Add Book</button>
-                </form>
-            </section>
+            <!-- Stats Cards -->
+            <div class="stats-container">
+                <ons-row>
+                    <ons-col width="50%">
+                        <ons-card class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-icon stat-total">📚</div>
+                                <div class="stat-number" id="totalBooks">0</div>
+                                <div class="stat-label">Total Books</div>
+                            </div>
+                        </ons-card>
+                    </ons-col>
+                    <ons-col width="50%">
+                        <ons-card class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-icon stat-reading">📖</div>
+                                <div class="stat-number" id="readingBooks">0</div>
+                                <div class="stat-label">Reading</div>
+                            </div>
+                        </ons-card>
+                    </ons-col>
+                </ons-row>
+                <ons-row>
+                    <ons-col width="50%">
+                        <ons-card class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-icon stat-completed">✅</div>
+                                <div class="stat-number" id="completedBooks">0</div>
+                                <div class="stat-label">Completed</div>
+                            </div>
+                        </ons-card>
+                    </ons-col>
+                    <ons-col width="50%">
+                        <ons-card class="stat-card">
+                            <div class="stat-content">
+                                <div class="stat-icon stat-unread">🔖</div>
+                                <div class="stat-number" id="unreadBooks">0</div>
+                                <div class="stat-label">To Read</div>
+                            </div>
+                        </ons-card>
+                    </ons-col>
+                </ons-row>
+            </div>
 
             <!-- Search -->
-            <section class="search-section">
-                <h2>Search Books</h2>
-                <input type="text" id="searchInput" placeholder="Search by book name or author...">
-            </section>
+            <ons-card style="margin: 16px 0;">
+                <div class="card-content">
+                    <ons-search-input
+                        id="searchInput"
+                        placeholder="Search books by title or author..."
+                        style="width: 100%;">
+                    </ons-search-input>
+                </div>
+            </ons-card>
 
-            <!-- Currently Reading -->
-            <section class="currently-reading">
-                <h2>📖 Currently Reading</h2>
+            <!-- Simple Toggle Buttons -->
+            <div class="section-toggle">
+                <ons-button id="readingToggle" class="toggle-btn active" onclick="showReadingSection()">
+                    📖 Currently Reading
+                </ons-button>
+                <ons-button id="libraryToggle" class="toggle-btn" onclick="showLibrarySection()">
+                    📚 My Library
+                </ons-button>
+            </div>
+
+            <!-- Currently Reading Section -->
+            <div id="reading-section">
+                <h3 class="section-title">📖 Currently Reading</h3>
                 <div id="currentlyReadingBooks"></div>
-            </section>
+            </div>
 
-            <!-- All Books -->
-            <section class="all-books">
-                <h2>📚 All Books</h2>
+            <!-- All Books Section -->
+            <div id="library-section" style="display: none;">
+                <h3 class="section-title">📚 My Library</h3>
                 <div id="allBooks"></div>
-            </section>
-        </main>
-    </div>
+            </div>
 
+        </div>
+
+        <!-- Floating Action Button -->
+        <ons-fab position="bottom right" onclick="showAddBookModal()">
+            <ons-icon icon="md-plus"></ons-icon>
+        </ons-fab>
+    </ons-page>
+
+    <!-- Add Book Modal -->
+    <ons-modal id="addBookModal">
+        <ons-page>
+            <ons-toolbar class="toolbar-primary">
+                <div class="left">
+                    <ons-toolbar-button onclick="hideAddBookModal()">
+                        <ons-icon icon="md-close"></ons-icon>
+                    </ons-toolbar-button>
+                </div>
+                <div class="center">Add New Book</div>
+                <div class="right">
+                    <ons-toolbar-button onclick="submitBook()" class="toolbar-button-save">
+                        Save
+                    </ons-toolbar-button>
+                </div>
+            </ons-toolbar>
+
+            <div style="padding: 16px;">
+                <ons-list>
+                    <!-- Book Title -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-book" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="bookName"
+                                placeholder="Book Title"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <!-- Author -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-account" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="authorName"
+                                placeholder="Author Name"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <!-- Status -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-bookmark" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-select id="status" style="width: 100%;">
+                                <option value="Not Read">📚 Not Read</option>
+                                <option value="Reading">📖 Reading</option>
+                                <option value="Read">✅ Read</option>
+                            </ons-select>
+                        </div>
+                    </ons-list-item>
+
+                    <!-- Genre -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-label" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-select id="category" style="width: 100%;">
+                                <option value="">Select Genre</option>
+                                <option value="Fiction">📚 Fiction</option>
+                                <option value="Non-Fiction">📖 Non-Fiction</option>
+                                <option value="Mystery">🕵️ Mystery</option>
+                                <option value="Romance">💕 Romance</option>
+                                <option value="Sci-Fi">🚀 Science Fiction</option>
+                                <option value="Fantasy">🧙 Fantasy</option>
+                                <option value="Biography">👤 Biography</option>
+                                <option value="History">🏛️ History</option>
+                                <option value="Self-Help">💡 Self-Help</option>
+                            </ons-select>
+                        </div>
+                    </ons-list-item>
+
+                    <!-- Purchase Date -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-calendar" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="purchaseDate"
+                                type="date"
+                                placeholder="Purchase Date"
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <!-- Current Page (shown when Reading) -->
+                    <div id="currentPageGroup" style="display: none;">
+                        <ons-list-item>
+                            <div class="left">
+                                <ons-icon icon="md-bookmark-outline" class="form-icon"></ons-icon>
+                            </div>
+                            <div class="center">
+                                <ons-input
+                                    id="currentPage"
+                                    type="number"
+                                    placeholder="Current Page"
+                                    min="1"
+                                    style="width: 100%;">
+                                </ons-input>
+                            </div>
+                        </ons-list-item>
+
+                        <ons-list-item>
+                            <div class="left">
+                                <ons-icon icon="md-library-books" class="form-icon"></ons-icon>
+                            </div>
+                            <div class="center">
+                                <ons-input
+                                    id="totalPages"
+                                    type="number"
+                                    placeholder="Total Pages"
+                                    min="1"
+                                    style="width: 100%;">
+                                </ons-input>
+                            </div>
+                        </ons-list-item>
+                    </div>
+
+                    <!-- Summary -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-comment" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <textarea
+                                id="summary"
+                                class="textarea"
+                                rows="3"
+                                placeholder="Summary or notes about the book..."
+                                style="width: 100%; resize: vertical;">
+                            </textarea>
+                        </div>
+                    </ons-list-item>
+
+                    <!-- Book Cover -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-photo" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <input
+                                type="file"
+                                id="bookCover"
+                                accept="image/*"
+                                class="file-input">
+                            <div id="imagePreview" style="margin-top: 10px;"></div>
+                        </div>
+                    </ons-list-item>
+                </ons-list>
+            </div>
+        </ons-page>
+    </ons-modal>
+
+    <!-- Edit Book Modal -->
+    <ons-modal id="editBookModal">
+        <ons-page>
+            <ons-toolbar class="toolbar-primary">
+                <div class="left">
+                    <ons-toolbar-button onclick="hideEditBookModal()">
+                        <ons-icon icon="md-close"></ons-icon>
+                    </ons-toolbar-button>
+                </div>
+                <div class="center">Edit Book</div>
+                <div class="right">
+                    <ons-toolbar-button onclick="saveEditedBook()" class="toolbar-button-save">
+                        Save
+                    </ons-toolbar-button>
+                </div>
+            </ons-toolbar>
+
+            <div style="padding: 16px;">
+                <ons-list>
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-book" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="editBookName"
+                                placeholder="Book Title"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-account" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="editAuthorName"
+                                placeholder="Author Name"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-bookmark" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-select id="editStatus" style="width: 100%;">
+                                <option value="Not Read">📚 Not Read</option>
+                                <option value="Reading">📖 Reading</option>
+                                <option value="Read">✅ Read</option>
+                            </ons-select>
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-label" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-select id="editCategory" style="width: 100%;">
+                                <option value="">Select Genre</option>
+                                <option value="Fiction">📚 Fiction</option>
+                                <option value="Non-Fiction">📖 Non-Fiction</option>
+                                <option value="Mystery">🕵️ Mystery</option>
+                                <option value="Romance">💕 Romance</option>
+                                <option value="Sci-Fi">🚀 Science Fiction</option>
+                                <option value="Fantasy">🧙 Fantasy</option>
+                                <option value="Biography">👤 Biography</option>
+                                <option value="History">🏛️ History</option>
+                                <option value="Self-Help">💡 Self-Help</option>
+                            </ons-select>
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-calendar" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="editPurchaseDate"
+                                type="date"
+                                placeholder="Purchase Date"
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <div id="editPageGroup">
+                        <ons-list-item>
+                            <div class="left">
+                                <ons-icon icon="md-bookmark-outline" class="form-icon"></ons-icon>
+                            </div>
+                            <div class="center">
+                                <ons-input
+                                    id="editCurrentPage"
+                                    type="number"
+                                    placeholder="Current Page"
+                                    min="1"
+                                    style="width: 100%;">
+                                </ons-input>
+                            </div>
+                        </ons-list-item>
+
+                        <ons-list-item>
+                            <div class="left">
+                                <ons-icon icon="md-library-books" class="form-icon"></ons-icon>
+                            </div>
+                            <div class="center">
+                                <ons-input
+                                    id="editTotalPages"
+                                    type="number"
+                                    placeholder="Total Pages"
+                                    min="1"
+                                    style="width: 100%;">
+                                </ons-input>
+                            </div>
+                        </ons-list-item>
+                    </div>
+
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-comment" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <textarea
+                                id="editSummary"
+                                class="textarea"
+                                rows="3"
+                                placeholder="Summary or notes..."
+                                style="width: 100%; resize: vertical;">
+                            </textarea>
+                        </div>
+                    </ons-list-item>
+                </ons-list>
+            </div>
+        </ons-page>
+    </ons-modal>
+
+    <!-- Progress Modal -->
+    <ons-modal id="progressModal">
+        <ons-page>
+            <ons-toolbar class="toolbar-warning">
+                <div class="left">
+                    <ons-toolbar-button onclick="hideProgressModal()">
+                        <ons-icon icon="md-close"></ons-icon>
+                    </ons-toolbar-button>
+                </div>
+                <div class="center">Update Progress</div>
+                <div class="right">
+                    <ons-toolbar-button onclick="updateBookProgress()" class="toolbar-button-save">
+                        Update
+                    </ons-toolbar-button>
+                </div>
+            </ons-toolbar>
+
+            <div style="padding: 16px;">
+                <ons-list>
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-bookmark-outline" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="updateCurrentPage"
+                                type="number"
+                                placeholder="Current Page"
+                                min="1"
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-library-books" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="updateTotalPages"
+                                type="number"
+                                placeholder="Total Pages"
+                                min="1"
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
+                </ons-list>
+
+                <ons-card>
+                    <div class="card-content">
+                        <h4>Reading Progress</h4>
+                        <ons-progress-bar id="progressBar" value="0" style="margin: 10px 0;"></ons-progress-bar>
+                        <p class="progress-text" id="progressText">0% completed</p>
+                    </div>
+                </ons-card>
+            </div>
+        </ons-page>
+    </ons-modal>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/onsenui/js/onsenui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://widget.cloudinary.com/v2.0/global/all.js"></script>
     <script src="script.js"></script>
