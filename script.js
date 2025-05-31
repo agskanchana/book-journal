@@ -13,6 +13,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 class BookJournal {
     constructor() {
         this.books = [];
+        this.editingBookId = null;
         this.init();
     }
 
@@ -61,19 +62,35 @@ class BookJournal {
             // Remove file from formData before sending to database
             delete formData.coverFile;
 
-            const { data, error } = await supabase
-                .from('books')
-                .insert([formData])
-                .select();
+            if (this.editingBookId) {
+                // Update existing book
+                const { data, error } = await supabase
+                    .from('books')
+                    .update(formData)
+                    .eq('id', this.editingBookId)
+                    .select();
 
-            if (error) throw error;
+                if (error) throw error;
+
+                this.editingBookId = null; // Reset editing state
+                alert('Book updated successfully!');
+            } else {
+                // Add new book
+                const { data, error } = await supabase
+                    .from('books')
+                    .insert([formData])
+                    .select();
+
+                if (error) throw error;
+
+                alert('Book added successfully!');
+            }
 
             this.clearForm();
             this.loadBooks();
-            alert('Book added successfully!');
         } catch (error) {
-            console.error('Error adding book:', error);
-            alert('Error adding book. Please try again.');
+            console.error('Error saving book:', error);
+            alert('Error saving book. Please try again.');
         }
     }
 
@@ -232,11 +249,10 @@ class BookJournal {
     }
 
     async editBook(id) {
-        // For simplicity, we'll just reload the form with the book data
-        // You can implement a more sophisticated edit modal if needed
         const book = this.books.find(b => b.id === id);
         if (!book) return;
 
+        // Populate the form with existing book data
         document.getElementById('bookName').value = book.name;
         document.getElementById('authorName').value = book.author;
         document.getElementById('purchaseDate').value = book.purchase_date || '';
@@ -249,17 +265,31 @@ class BookJournal {
             document.getElementById('currentPageGroup').style.display = 'block';
         }
 
+        // Show existing image preview if available
+        if (book.cover_url) {
+            document.getElementById('imagePreview').innerHTML = `<img src="${book.cover_url}" alt="Current cover">`;
+        }
+
+        // Store the book ID for updating instead of adding new
+        this.editingBookId = id;
+
+        // Update the form submit button text
+        const submitButton = document.querySelector('#bookForm button[type="submit"]');
+        submitButton.textContent = 'Update Book';
+
         // Scroll to form
         document.querySelector('.add-book-section').scrollIntoView({ behavior: 'smooth' });
-
-        // Delete the old record (simple edit implementation)
-        await this.deleteBook(id);
     }
 
     clearForm() {
         document.getElementById('bookForm').reset();
         document.getElementById('imagePreview').innerHTML = '';
         document.getElementById('currentPageGroup').style.display = 'none';
+
+        // Reset editing state and button text
+        this.editingBookId = null;
+        const submitButton = document.querySelector('#bookForm button[type="submit"]');
+        submitButton.textContent = 'Add Book';
     }
 }
 
