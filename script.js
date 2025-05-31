@@ -986,3 +986,4 @@ function updateBookProgress() {
 document.addEventListener('DOMContentLoaded', () => {
     window.bookJournal = new BookJournal();
 });
+
