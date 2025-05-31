@@ -302,8 +302,8 @@ class BookJournal {
         if (!this.currentUser) return;
 
         try {
-            // Load all shared books with user's personal progress AND creator info
-            const { data, error } = await supabase
+            // First, load all shared books with user's personal progress
+            const { data: booksData, error: booksError } = await supabase
                 .from('shared_books')
                 .select(`
                     *,
@@ -314,21 +314,34 @@ class BookJournal {
                         personal_notes,
                         started_reading_at,
                         finished_reading_at
-                    ),
-                    user_profiles!shared_books_created_by_fkey (
-                        full_name,
-                        email
                     )
                 `)
                 .eq('user_reading_progress.user_id', this.currentUser.id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (booksError) throw booksError;
+
+            // Get unique creator IDs
+            const creatorIds = [...new Set(booksData.map(book => book.created_by))];
+
+            // Get creator profiles in a separate query
+            const { data: creatorsData, error: creatorsError } = await supabase
+                .from('user_profiles')
+                .select('id, full_name, email')
+                .in('id', creatorIds);
+
+            // Create a map for quick lookup (don't fail if creators query fails)
+            const creatorsMap = new Map();
+            if (!creatorsError && creatorsData) {
+                creatorsData.forEach(creator => {
+                    creatorsMap.set(creator.id, creator);
+                });
+            }
 
             // Transform data to match the expected format
-            this.books = data.map(book => {
+            this.books = booksData.map(book => {
                 const progress = book.user_reading_progress[0] || {};
-                const creator = book.user_profiles || {};
+                const creator = creatorsMap.get(book.created_by) || {};
 
                 return {
                     id: book.id,
@@ -340,7 +353,9 @@ class BookJournal {
                     total_pages: book.total_pages,
                     created_by: book.created_by,
                     // Creator info
-                    creator_name: creator.full_name || creator.email || 'Unknown User',
+                    creator_name: creator.full_name ||
+                                 (creator.email ? creator.email.split('@')[0] : null) ||
+                                 'Community Member',
                     // User-specific data
                     status: progress.status || 'Not Read',
                     current_page: progress.current_page || null,
@@ -351,11 +366,45 @@ class BookJournal {
                 };
             });
 
+            // Ensure all creator profiles exist
+            await this.ensureCreatorProfiles(creatorIds);
+
             this.displayBooks();
             this.updateStats();
         } catch (error) {
             console.error('Error loading books:', error);
             this.showNotification('Error loading books', 'error');
+        }
+    }
+
+    async ensureCreatorProfiles(creatorIds) {
+        const missingIds = [];
+
+        // Check which profiles are missing
+        for (const creatorId of creatorIds) {
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('id')
+                .eq('id', creatorId)
+                .single();
+
+            if (!profile) {
+                missingIds.push(creatorId);
+            }
+        }
+
+        // Create missing profiles
+        if (missingIds.length > 0) {
+            const missingProfiles = missingIds.map(id => ({
+                id: id,
+                email: 'unknown@example.com',
+                full_name: 'Community Member',
+                avatar_url: ''
+            }));
+
+            await supabase
+                .from('user_profiles')
+                .insert(missingProfiles);
         }
     }
 
