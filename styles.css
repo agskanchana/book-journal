@@ -285,8 +285,21 @@ body {
     border: 1px solid #f5c6cb;
 }
 
+.btn-add {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
 .action-btn:active {
     transform: scale(0.95);
+}
+
+/* Make disabled form fields more obvious */
+input:disabled, select:disabled {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    cursor: not-allowed;
 }
 
 /* Form Styling */
