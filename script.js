@@ -303,7 +303,7 @@ class BookJournal {
         if (!this.currentUser) return;
 
         try {
-            // Load all shared books with user's personal progress
+            // Load all shared books with user's personal progress AND creator info
             const { data, error } = await supabase
                 .from('shared_books')
                 .select(`
@@ -315,6 +315,10 @@ class BookJournal {
                         personal_notes,
                         started_reading_at,
                         finished_reading_at
+                    ),
+                    user_profiles!shared_books_created_by_fkey (
+                        full_name,
+                        email
                     )
                 `)
                 .eq('user_reading_progress.user_id', this.currentUser.id)
@@ -325,6 +329,8 @@ class BookJournal {
             // Transform data to match the expected format
             this.books = data.map(book => {
                 const progress = book.user_reading_progress[0] || {};
+                const creator = book.user_profiles || {};
+
                 return {
                     id: book.id,
                     name: book.name,
@@ -334,6 +340,8 @@ class BookJournal {
                     cover_url: book.cover_url,
                     total_pages: book.total_pages,
                     created_by: book.created_by,
+                    // Creator info
+                    creator_name: creator.full_name || creator.email || 'Unknown User',
                     // User-specific data
                     status: progress.status || 'Not Read',
                     current_page: progress.current_page || null,
@@ -421,13 +429,13 @@ class BookJournal {
 
         const progressInfo = book.status === 'Reading' && book.current_page && book.total_pages
             ? `<div class="progress-info">
-                 <div class="reading-progress">
-                   <div class="progress" style="height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
-                     <div style="width: ${Math.round((book.current_page / book.total_pages) * 100)}%; height: 100%; background: #28a745; border-radius: 2px;"></div>
-                   </div>
-                 </div>
-                 <small>${book.current_page}/${book.total_pages} pages (${Math.round((book.current_page / book.total_pages) * 100)}%)</small>
-               </div>`
+             <div class="reading-progress">
+               <div class="progress" style="height: 4px; background: #e9ecef; border-radius: 2px; overflow: hidden;">
+                 <div style="width: ${Math.round((book.current_page / book.total_pages) * 100)}%; height: 100%; background: #28a745; border-radius: 2px;"></div>
+               </div>
+             </div>
+             <small>${book.current_page}/${book.total_pages} pages (${Math.round((book.current_page / book.total_pages) * 100)}%)</small>
+           </div>`
             : book.status === 'Reading' && book.current_page
             ? `<div class="progress-info"><small>Page ${book.current_page}</small></div>`
             : '';
@@ -435,15 +443,19 @@ class BookJournal {
         // Show both book summary and personal notes
         const notes = book.summary || book.personal_notes
             ? `<div class="book-summary">
-                ${book.summary ? `<div><strong>About:</strong> ${book.summary}</div>` : ''}
-                ${book.personal_notes ? `<div><strong>My Notes:</strong> ${book.personal_notes}</div>` : ''}
-               </div>`
+            ${book.summary ? `<div><strong>About:</strong> ${book.summary}</div>` : ''}
+            ${book.personal_notes ? `<div><strong>My Notes:</strong> ${book.personal_notes}</div>` : ''}
+           </div>`
             : '';
 
-        // Show who added the book if it wasn't the current user
+        // Show who added the book with actual name
         const addedBy = book.created_by !== this.currentUser.id
-            ? `<div class="book-meta"><small>📚 Added by community</small></div>`
-            : '';
+            ? `<div class="book-meta">
+             <small>👤 Added by ${book.creator_name}</small>
+           </div>`
+            : `<div class="book-meta">
+             <small>✨ Added by you</small>
+           </div>`;
 
         return `
             <div class="book-card">

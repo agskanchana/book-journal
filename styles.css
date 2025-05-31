@@ -193,6 +193,18 @@ body {
     font-weight: 500;
 }
 
+.book-meta small {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    display: block;
+    margin-top: 4px;
+}
+
+.book-meta small[data-added-by-you] {
+    color: #667eea;
+    font-weight: 500;
+}
+
 .book-summary {
     font-size: 0.85rem;
     color: #5d6d7e;
