@@ -125,13 +125,19 @@ class BookJournal {
     setupEventListeners() {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
+            // Remove existing listener to prevent duplicates
+            searchInput.removeEventListener('input', this.searchHandler);
+
+            // Create bound handler
+            this.searchHandler = (e) => {
                 this.searchBooks(e.target.value);
-            });
+            };
+
+            searchInput.addEventListener('input', this.searchHandler);
         }
 
-        // Setup simple file input listener
-        setupFileInputListener();
+        // Setup file input listener properly
+        this.setupFileInputListener();
 
         this.setupStatusChangeListeners();
         this.setupProgressListeners();
@@ -178,6 +184,13 @@ class BookJournal {
             return;
         }
 
+        // Prevent multiple submissions
+        const saveButton = document.querySelector('.toolbar-button-save');
+        if (saveButton && saveButton.disabled) {
+            console.log('Save already in progress, ignoring duplicate click');
+            return;
+        }
+
         // Reset any previous modal state
         this.currentBookForUpdate = null;
 
@@ -214,32 +227,54 @@ class BookJournal {
         }
 
         try {
-            // Show loading state - target the correct button
-            const saveButton = document.querySelector('.toolbar-button-save');
+            // Show loading state - with timeout protection
             if (saveButton) {
                 saveButton.disabled = true;
                 saveButton.textContent = 'Adding...';
                 saveButton.style.opacity = '0.6';
             }
 
+            // Set a timeout to prevent infinite hanging
+            const timeoutId = setTimeout(() => {
+                console.error('Add book operation timed out');
+                throw new Error('Operation timed out. Please try again.');
+            }, 30000); // 30 second timeout
+
             console.log('=== ADD BOOK DEBUG ===');
             console.log('Form data:', formData);
             console.log('Current user:', this.currentUser.id);
 
-            // Upload image if provided
+            // Upload image if provided (with timeout protection)
             let cover_url = null;
             if (formData.coverFile) {
                 console.log('Uploading image...');
-                cover_url = await this.uploadImage(formData.coverFile);
-                console.log('Image uploaded:', cover_url);
+                try {
+                    // Add timeout for image upload
+                    const uploadPromise = this.uploadImage(formData.coverFile);
+                    const uploadTimeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Image upload timeout')), 20000)
+                    );
+
+                    cover_url = await Promise.race([uploadPromise, uploadTimeoutPromise]);
+                    console.log('Image uploaded successfully:', cover_url);
+                } catch (uploadError) {
+                    console.error('Image upload failed:', uploadError);
+                    // Continue without image rather than failing completely
+                    ons.notification.alert({
+                        message: '⚠️ Image upload failed, but book will be saved without cover. Continue?',
+                        title: 'Upload Warning',
+                        buttonLabel: 'Continue'
+                    });
+                    cover_url = null;
+                }
             }
 
             // First, add the book to shared_books
             const sharedBookData = {
-                name: formData.name,
-                author: formData.author,
-                category: formData.category,
-                summary: formData.summary,
+                name: formData.name.trim(),
+                author: formData.author.trim(),
+                category: formData.category || null,
+                summary: formData.summary || null,
                 total_pages: parseInt(formData.total_pages),
                 cover_url: cover_url,
                 created_by: this.currentUser.id
@@ -253,7 +288,10 @@ class BookJournal {
                 .select()
                 .single();
 
-            if (bookError) throw bookError;
+            if (bookError) {
+                console.error('Book insert error:', bookError);
+                throw bookError;
+            }
 
             console.log('Book added to shared_books:', bookData);
 
@@ -262,8 +300,8 @@ class BookJournal {
                 user_id: this.currentUser.id,
                 book_id: bookData.id,
                 status: formData.status,
-                current_page: formData.current_page,
-                purchase_date: formData.purchase_date,
+                current_page: formData.current_page ? parseInt(formData.current_page) : null,
+                purchase_date: formData.purchase_date || null,
                 started_reading_at: formData.status === 'Reading' ? new Date().toISOString() : null
             };
 
@@ -273,9 +311,15 @@ class BookJournal {
                 .from('user_reading_progress')
                 .insert([progressData]);
 
-            if (progressError) throw progressError;
+            if (progressError) {
+                console.error('Progress insert error:', progressError);
+                throw progressError;
+            }
 
             console.log('Progress added successfully');
+
+            // Clear the timeout since we succeeded
+            clearTimeout(timeoutId);
 
             ons.notification.alert({
                 message: '✅ Book added successfully!',
@@ -285,20 +329,38 @@ class BookJournal {
 
             // Close modal and reload
             hideAddBookModal();
-            await this.loadBooks(); // Make sure this completes
+
+            // Force reload with timeout protection
+            const loadTimeout = setTimeout(() => {
+                console.warn('Load books taking too long, forcing UI update');
+                this.displayBooks(); // Display current books without reload
+            }, 5000);
+
+            await this.loadBooks();
+            clearTimeout(loadTimeout);
 
             console.log('=== ADD BOOK COMPLETED ===');
 
         } catch (error) {
             console.error('Error adding book:', error);
+
+            // Check if it's a specific error we can handle
+            let errorMessage = error.message;
+            if (error.message.includes('timeout')) {
+                errorMessage = 'The operation is taking too long. Please check your connection and try again.';
+            } else if (error.message.includes('duplicate')) {
+                errorMessage = 'A book with this title already exists in your library.';
+            } else if (error.message.includes('network')) {
+                errorMessage = 'Network error. Please check your connection and try again.';
+            }
+
             ons.notification.alert({
-                message: `❌ Error adding book: ${error.message}`,
+                message: `❌ Error adding book: ${errorMessage}`,
                 title: 'Error',
                 buttonLabel: 'OK'
             });
         } finally {
-            // Reset button state
-            const saveButton = document.querySelector('.toolbar-button-save');
+            // Always reset button state
             if (saveButton) {
                 saveButton.disabled = false;
                 saveButton.textContent = 'Save';
@@ -308,17 +370,28 @@ class BookJournal {
     }
 
     getFormData() {
-        return {
+        const data = {
             name: this.getElementValue('bookName'),
             author: this.getElementValue('authorName'),
             purchase_date: this.getElementValue('purchaseDate') || null,
-            status: this.getElementValue('status'),
+            status: this.getElementValue('status') || 'Not Read',
             current_page: this.getElementValue('currentPage') || null,
-            total_pages: this.getElementValue('totalPages') || null, // This is now required
+            total_pages: this.getElementValue('totalPages') || null,
             category: this.getElementValue('category') || null,
             summary: this.getElementValue('summary') || null,
-            coverFile: document.getElementById('bookCover')?.files[0] || null
+            coverFile: null
         };
+
+        // Safely get the file
+        const fileInput = document.getElementById('bookCover');
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
+            data.coverFile = fileInput.files[0];
+            console.log('Cover file found:', data.coverFile.name, data.coverFile.size);
+        } else {
+            console.log('No cover file selected');
+        }
+
+        return data;
     }
 
     getEditFormData() {
@@ -1283,6 +1356,32 @@ class BookJournal {
 
         console.log('Update form reset');
     }
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    async checkConnection() {
+        try {
+            const { data, error } = await supabase
+                .from('shared_books')
+                .select('count')
+                .limit(1);
+
+            return !error;
+        } catch (error) {
+            console.error('Connection check failed:', error);
+            return false;
+        }
+    }
 }
 
 // Authentication Functions
@@ -1316,6 +1415,8 @@ async function signOut() {
 
 // Modal Functions
 function showAddBookModal() {
+    console.log('Opening add book modal');
+
     // Reset form before showing modal
     if (window.bookJournal) {
         window.bookJournal.resetAddBookForm();
@@ -1332,6 +1433,13 @@ function showAddBookModal() {
             saveButton.textContent = 'Save';
             saveButton.style.opacity = '1';
         }
+
+        // Re-setup file input listener for the modal
+        setTimeout(() => {
+            if (window.bookJournal) {
+                window.bookJournal.setupFileInputListener();
+            }
+        }, 100);
     }
 }
 
@@ -1531,41 +1639,20 @@ function hideProgressModal() {
 function setupFileInputListener() {
     const bookCover = document.getElementById('bookCover');
     if (bookCover) {
-        // Remove any existing listeners
-        bookCover.removeEventListener('change', handleFileSelect);
+        // Remove existing listener to prevent duplicates
+        bookCover.removeEventListener('change', this.fileHandler);
 
-        // Add the listener
-        bookCover.addEventListener('change', handleFileSelect);
+        // Create bound handler
+        this.fileHandler = (e) => {
+            console.log('File selected:', e.target.files[0]);
+            if (e.target.files[0]) {
+                this.previewImage(e, 'imagePreview');
+            }
+        };
+
+        bookCover.addEventListener('change', this.fileHandler);
 
         console.log('File input listener setup completed');
     }
-}
-
-function handleFileSelect(event) {
-    console.log('File selected:', event.target.files[0]);
-
-    if (window.bookJournal && event.target.files[0]) {
-        window.bookJournal.previewImage(event, 'imagePreview');
-    }
-}
-
-// Update the setupEventListeners method to use the simple approach:
-// In the BookJournal class, update this method:
-setupEventListeners() {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            this.searchBooks(e.target.value);
-        });
-    }
-
-    // Setup simple file input listener
-    setupFileInputListener();
-
-    this.setupStatusChangeListeners();
-    this.setupProgressListeners();
-
-    // Remove camera permissions setup - not needed anymore
-    // this.setupCameraPermissions();
 }
 
