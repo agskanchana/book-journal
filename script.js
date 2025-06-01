@@ -752,19 +752,19 @@ class BookJournal {
 
         // Show different buttons based on whether user has started tracking or owns the book
         const actionButtons = book.created_by === this.currentUser.id
-            ? `<button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
-                   ✏️ Edit
-               </button>
-               <button class="action-btn btn-delete" onclick="bookJournal.deleteBook(${book.id})">
-                   🗑️ Delete
-               </button>`
-            : book.hasProgress
-            ? `<button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
-                   ✏️ Edit
-               </button>`
-            : `<button class="action-btn btn-start" onclick="bookJournal.startTrackingBook(${book.id})">
-                   📖 Start Reading
-               </button>`;
+    ? `<button class="action-btn btn-edit" onclick="window.bookJournal.editBookProgress(${book.id})">
+           ✏️ Edit
+       </button>
+       <button class="action-btn btn-delete" onclick="window.bookJournal.deleteBook(${book.id})">
+           🗑️ Delete
+       </button>`
+    : book.hasProgress
+    ? `<button class="action-btn btn-edit" onclick="window.bookJournal.editBookProgress(${book.id})">
+           ✏️ Edit
+       </button>`
+    : `<button class="action-btn btn-start" onclick="window.bookJournal.startTrackingBook(${book.id})">
+           📖 Start Reading
+       </button>`;
 
         return `
             <div class="book-card">
@@ -791,10 +791,10 @@ class BookJournal {
                         ${book.status}
                     </div>
                     ${book.status === 'Reading' ? `
-                        <button class="action-btn btn-progress" onclick="bookJournal.openProgressModal(${book.id})">
-                            📊 Progress
-                        </button>
-                    ` : ''}
+                    <button class="action-btn btn-progress" onclick="window.bookJournal.openProgressModal(${book.id})">
+                        📊 Progress
+                    </button>
+                ` : ''}
                     ${actionButtons}
                 </div>
             </div>
@@ -1437,6 +1437,25 @@ class BookJournal {
             console.error('Error signing out unauthorized user:', error);
         }
     }
+
+    setupFileInputListener() {
+        const bookCover = document.getElementById('bookCover');
+        if (bookCover) {
+            // Remove existing listener to prevent duplicates
+            bookCover.removeEventListener('change', this.fileHandler);
+
+            // Create bound handler
+            this.fileHandler = (e) => {
+                console.log('File selected:', e.target.files[0]);
+                if (e.target.files[0]) {
+                    this.previewImage(e, 'imagePreview');
+                }
+            };
+
+            bookCover.addEventListener('change', this.fileHandler);
+            console.log('File input listener setup completed');
+        }
+    }
 }
 
 // Authentication Functions
@@ -1710,27 +1729,6 @@ function hideProgressModal() {
         if (window.bookJournal) {
             window.bookJournal.currentBookForUpdate = null;
         }
-    }
-}
-
-// Simple file handling - no complex camera functions needed
-function setupFileInputListener() {
-    const bookCover = document.getElementById('bookCover');
-    if (bookCover) {
-        // Remove existing listener to prevent duplicates
-        bookCover.removeEventListener('change', this.fileHandler);
-
-        // Create bound handler
-        this.fileHandler = (e) => {
-            console.log('File selected:', e.target.files[0]);
-            if (e.target.files[0]) {
-                this.previewImage(e, 'imagePreview');
-            }
-        };
-
-        bookCover.addEventListener('change', this.fileHandler);
-
-        console.log('File input listener setup completed');
     }
 }
 
