@@ -752,3 +752,27 @@ ons-dialog .dialog {
     background: #f8f9fa;
     margin-bottom: 8px;
 }
+
+/* Add this to your styles.css: */
+
+/* Modal display styles */
+ons-modal {
+    display: none;
+}
+
+ons-modal[style*="block"] {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix toolbar button styling */
+.toolbar-button-save:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
+.toolbar-button-save {
+    transition: all 0.3s ease;
+}

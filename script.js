@@ -142,25 +142,22 @@ class BookJournal {
     }
 
     setupStatusChangeListeners() {
-        const statusSelect = document.getElementById('status');
-        if (statusSelect) {
-            statusSelect.addEventListener('change', (e) => {
+        // Add listener for add book modal
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'status') {
                 const currentPageGroup = document.getElementById('currentPageGroup');
                 if (currentPageGroup) {
                     currentPageGroup.style.display = e.target.value === 'Reading' ? 'block' : 'none';
                 }
-            });
-        }
+            }
 
-        const editStatusSelect = document.getElementById('editStatus');
-        if (editStatusSelect) {
-            editStatusSelect.addEventListener('change', (e) => {
+            if (e.target.id === 'editStatus') {
                 const editPageGroup = document.getElementById('editPageGroup');
                 if (editPageGroup) {
                     editPageGroup.style.display = e.target.value === 'Reading' ? 'block' : 'none';
                 }
-            });
-        }
+            }
+        });
     }
 
     setupProgressListeners() {
@@ -221,11 +218,12 @@ class BookJournal {
         }
 
         try {
-            // Show loading state
-            const saveButton = document.querySelector('.save-book-btn');
+            // Show loading state - target the correct button
+            const saveButton = document.querySelector('.toolbar-button-save');
             if (saveButton) {
                 saveButton.disabled = true;
                 saveButton.textContent = 'Adding...';
+                saveButton.style.opacity = '0.6';
             }
 
             console.log('=== ADD BOOK DEBUG ===');
@@ -291,7 +289,7 @@ class BookJournal {
 
             // Close modal and reload
             hideAddBookModal();
-            this.loadBooks();
+            await this.loadBooks(); // Make sure this completes
 
             console.log('=== ADD BOOK COMPLETED ===');
 
@@ -304,10 +302,11 @@ class BookJournal {
             });
         } finally {
             // Reset button state
-            const saveButton = document.querySelector('.save-book-btn');
+            const saveButton = document.querySelector('.toolbar-button-save');
             if (saveButton) {
                 saveButton.disabled = false;
-                saveButton.textContent = 'Save Book';
+                saveButton.textContent = 'Save';
+                saveButton.style.opacity = '1';
             }
         }
     }
@@ -746,9 +745,6 @@ class BookJournal {
             return;
         }
 
-        // Reset any previous state
-        this.resetUpdateForm();
-
         const book = this.books.find(b => b.id === bookId);
         if (!book) {
             ons.notification.alert({
@@ -759,17 +755,17 @@ class BookJournal {
             return;
         }
 
-        // Set current book for update
-        this.currentBookForUpdate = bookId;
+        // Set current book for editing
+        this.editingBookId = bookId; // Use editingBookId instead of currentBookForUpdate
 
         // Populate form with current values
-        this.setElementValue('updateCurrentPage', book.current_page || '');
-        this.setElementValue('updateStatus', book.status || 'Not Read');
-        this.setElementValue('updatePurchaseDate', book.purchase_date || '');
-        this.setElementValue('updateNotes', book.personal_notes || '');
+        this.setElementValue('editStatus', book.status || 'Not Read');
+        this.setElementValue('editCurrentPage', book.current_page || '');
+        this.setElementValue('editPurchaseDate', book.purchase_date || '');
+        this.setElementValue('editSummary', book.personal_notes || '');
 
         // Show the modal
-        showUpdateModal();
+        showEditBookModal();
 
         console.log('Edit progress for book:', bookId, book);
     }
@@ -783,7 +779,20 @@ class BookJournal {
 
     async saveEditedBook() {
         if (!this.currentUser) {
-            this.showNotification('Please sign in to edit progress', 'error');
+            ons.notification.alert({
+                message: '🔒 Please sign in to edit progress',
+                title: 'Authentication Required',
+                buttonLabel: 'OK'
+            });
+            return;
+        }
+
+        if (!this.editingBookId) {
+            ons.notification.alert({
+                message: '❌ No book selected for editing',
+                title: 'Error',
+                buttonLabel: 'OK'
+            });
             return;
         }
 
@@ -835,12 +844,25 @@ class BookJournal {
                 if (error) throw error;
             }
 
-            this.showNotification('Progress updated successfully!', 'success');
+            ons.notification.alert({
+                message: '✅ Progress updated successfully!',
+                title: 'Success',
+                buttonLabel: 'OK'
+            });
+
             hideEditBookModal();
-            this.loadBooks();
+            await this.loadBooks(); // Make sure this completes
+
+            // Reset editing state
+            this.editingBookId = null;
+
         } catch (error) {
             console.error('Error updating progress:', error);
-            this.showNotification('Error updating progress. Please try again.', 'error');
+            ons.notification.alert({
+                message: `❌ Error updating progress: ${error.message}`,
+                title: 'Error',
+                buttonLabel: 'OK'
+            });
         }
     }
 
@@ -1243,10 +1265,11 @@ function showAddBookModal() {
         modal.style.display = 'block';
 
         // Reset button state
-        const saveButton = document.querySelector('.save-book-btn');
+        const saveButton = document.querySelector('.toolbar-button-save');
         if (saveButton) {
             saveButton.disabled = false;
-            saveButton.textContent = 'Save Book';
+            saveButton.textContent = 'Save';
+            saveButton.style.opacity = '1';
         }
     }
 }
@@ -1260,45 +1283,30 @@ function hideAddBookModal() {
         if (window.bookJournal) {
             window.bookJournal.resetAddBookForm();
         }
-    }
-}
 
-// Add similar functions for update modal:
-function showUpdateModal() {
-    // Reset form before showing modal
-    if (window.bookJournal) {
-        window.bookJournal.resetUpdateForm();
-    }
-
-    const modal = document.getElementById('updateProgressModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
-}
-
-function hideUpdateModal() {
-    const modal = document.getElementById('updateProgressModal');
-    if (modal) {
-        modal.style.display = 'none';
-
-        // Reset form when hiding
-        if (window.bookJournal) {
-            window.bookJournal.resetUpdateForm();
+        // Reset button state
+        const saveButton = document.querySelector('.toolbar-button-save');
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save';
+            saveButton.style.opacity = '1';
         }
     }
 }
 
+// Update these functions around line 1360:
+
 function showUserMenu() {
     const modal = document.getElementById('userMenuModal');
     if (modal) {
-        modal.show();
+        modal.style.display = 'block';
     }
 }
 
 function hideUserMenu() {
     const modal = document.getElementById('userMenuModal');
     if (modal) {
-        modal.hide();
+        modal.style.display = 'none';
     }
 }
 
@@ -1423,4 +1431,35 @@ function updateBookProgress() {
 document.addEventListener('DOMContentLoaded', () => {
     window.bookJournal = new BookJournal();
 });
+
+function showEditBookModal() {
+    const modal = document.getElementById('editBookModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function hideEditBookModal() {
+    const modal = document.getElementById('editBookModal');
+    if (modal) {
+        modal.style.display = 'none';
+
+        // Reset editing state
+        if (window.bookJournal) {
+            window.bookJournal.editingBookId = null;
+        }
+    }
+}
+
+function hideProgressModal() {
+    const modal = document.getElementById('progressModal');
+    if (modal) {
+        modal.style.display = 'none';
+
+        // Reset current book for update
+        if (window.bookJournal) {
+            window.bookJournal.currentBookForUpdate = null;
+        }
+    }
+}
 
