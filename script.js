@@ -842,15 +842,15 @@ class BookJournal {
         // Set current book for editing
         this.editingBookId = bookId;
 
-        // Populate form with current values - FIX: Use correct field IDs
-        this.setElementValue('editBookName', book.name || '');
-        this.setElementValue('editAuthorName', book.author || '');
-        this.setElementValue('editStatus', book.status || 'Not Read');
-        this.setElementValue('editCategory', book.category || '');
-        this.setElementValue('editCurrentPage', book.current_page || '');
-        this.setElementValue('editTotalPages', book.total_pages || '');
-        this.setElementValue('editPurchaseDate', book.purchase_date || '');
-        this.setElementValue('editSummary', book.personal_notes || '');
+        // Populate form with current values
+        Utils.setElementValue('editBookName', book.name || '');
+        Utils.setElementValue('editAuthorName', book.author || '');
+        Utils.setElementValue('editStatus', book.status || 'Not Read');
+        Utils.setElementValue('editCategory', book.category || '');
+        Utils.setElementValue('editCurrentPage', book.current_page || '');
+        Utils.setElementValue('editTotalPages', book.total_pages || '');
+        Utils.setElementValue('editPurchaseDate', book.purchase_date || '');
+        Utils.setElementValue('editSummary', book.personal_notes || '');
 
         // Show/hide current page field based on status
         const editPageGroup = document.getElementById('editPageGroup');
@@ -862,13 +862,6 @@ class BookJournal {
         showEditBookModal();
 
         console.log('Edit progress for book:', bookId, book);
-    }
-
-    setElementValue(id, value) {
-        const element = document.getElementById(id);
-        if (element) {
-            element.value = value;
-        }
     }
 
     async saveEditedBook() {
@@ -890,7 +883,7 @@ class BookJournal {
             return;
         }
 
-        const formData = this.getEditFormData();
+        const formData = Utils.getEditFormData();
 
         // Validation
         if (!formData.name.trim() || !formData.author.trim()) {
@@ -1010,20 +1003,20 @@ class BookJournal {
         const book = this.books.find(b => b.id === bookId);
 
         if (book) {
-            this.setElementValue('updateCurrentPage', book.current_page || '');
-            this.setElementValue('updateTotalPages', book.total_pages || '');
+            Utils.setElementValue('updateCurrentPage', book.current_page || '');
+            Utils.setElementValue('updateTotalPages', book.total_pages || '');
             this.updateProgressDisplay();
         }
 
         const modal = document.getElementById('progressModal');
         if (modal) {
-            modal.show();
+            modal.style.display = 'block';
         }
     }
 
     updateProgressDisplay() {
-        const currentPage = parseInt(this.getElementValue('updateCurrentPage')) || 0;
-        const totalPages = parseInt(this.getElementValue('updateTotalPages')) || 0;
+        const currentPage = parseInt(Utils.getElementValue('updateCurrentPage')) || 0;
+        const totalPages = parseInt(Utils.getElementValue('updateTotalPages')) || 0;
 
         const progressBar = document.getElementById('progressBar');
         const progressText = document.getElementById('progressText');
@@ -1048,7 +1041,7 @@ class BookJournal {
             return;
         }
 
-        const currentPage = parseInt(this.getElementValue('updateCurrentPage'));
+        const currentPage = parseInt(Utils.getElementValue('updateCurrentPage'));
 
         if (!currentPage || currentPage < 1) {
             ons.notification.alert({
@@ -1100,168 +1093,6 @@ class BookJournal {
             console.error('Error updating progress:', error);
             this.showNotification('Error updating progress', 'error');
         }
-    }
-
-    async deleteBook(id) {
-        if (!this.currentUser) {
-            ons.notification.alert({
-                message: '🔒 Please sign in to delete books',
-                title: 'Authentication Required',
-                buttonLabel: 'OK'
-            });
-            return;
-        }
-
-        const book = this.books.find(b => b.id === id);
-        if (!book || book.created_by !== this.currentUser.id) {
-            ons.notification.alert({
-                message: '❌ You can only delete books you added',
-                title: 'Permission Denied',
-                buttonLabel: 'OK'
-            });
-            return;
-        }
-
-        // Use Onsen UI confirm dialog
-        ons.notification.confirm({
-            message: `🗑️ Are you sure you want to delete "${book.name}"?\n\nThis will remove it permanently.`,
-            title: 'Confirm Delete',
-            buttonLabels: ['Cancel', 'Delete']
-        }).then((buttonIndex) => {
-            if (buttonIndex === 1) { // Delete button clicked
-                this.performDelete(id);
-            }
-        });
-    }
-
-    // Add this helper method for the actual deletion:
-    async performDelete(id) {
-        try {
-            console.log('=== DELETE DEBUG INFO ===');
-            console.log('Attempting to delete book with ID:', id);
-            console.log('Current user ID:', this.currentUser.id);
-
-            // First check if the book exists and user owns it
-            const { data: bookCheck, error: checkError } = await supabase
-                .from('shared_books')
-                .select('id, name, created_by')
-                .eq('id', id)
-                .single();
-
-            if (checkError) {
-                console.error('Error checking book:', checkError);
-                throw checkError;
-            }
-
-            console.log('Book found:', bookCheck);
-
-            if (bookCheck.created_by !== this.currentUser.id) {
-                ons.notification.alert({
-                    message: '❌ You do not have permission to delete this book',
-                    title: 'Permission Denied',
-                    buttonLabel: 'OK'
-                });
-                return;
-            }
-
-            // Delete progress records first (for ALL users, not just current user)
-            console.log('Deleting all progress records for book ID:', id);
-            const { data: deletedProgress, error: progressError } = await supabase
-                .from('user_reading_progress')
-                .delete()
-                .eq('book_id', id)
-                .select(); // Add select to see what was deleted
-
-            if (progressError) {
-                console.error('Error deleting progress records:', progressError);
-            } else {
-                console.log('Deleted progress records:', deletedProgress);
-            }
-
-            // Delete the book
-            console.log('Deleting book...');
-            const { data: deletedBook, error: bookError } = await supabase
-                .from('shared_books')
-                .delete()
-                .eq('id', id)
-                .eq('created_by', this.currentUser.id)
-                .select(); // Add select to see what was deleted
-
-            if (bookError) {
-                console.error('Error deleting book:', bookError);
-                throw bookError;
-            }
-
-            console.log('Deleted book:', deletedBook);
-
-            if (!deletedBook || deletedBook.length === 0) {
-                ons.notification.alert({
-                    message: '❌ No book was deleted. You may not have permission.',
-                    title: 'Delete Failed',
-                    buttonLabel: 'OK'
-                });
-                return;
-            }
-
-            // Force reload books after successful deletion
-            console.log('Reloading books...');
-            await this.loadBooks();
-
-            ons.notification.alert({
-                message: '✅ Book deleted successfully!',
-                title: 'Deleted',
-                buttonLabel: 'OK'
-            });
-
-            console.log('=== DELETE COMPLETED ===');
-        } catch (error) {
-            console.error('Error deleting book:', error);
-            ons.notification.alert({
-                message: `❌ Error deleting book: ${error.message}`,
-                title: 'Delete Failed',
-                buttonLabel: 'OK'
-            });
-        }
-    }
-
-    showNotification(message, type = 'info') {
-        // Use Onsen UI dialog instead of custom notification
-        let icon = '💬';
-        let title = 'Info';
-
-        switch(type) {
-            case 'success':
-                icon = '✅';
-                title = 'Success';
-                break;
-            case 'error':
-                icon = '❌';
-                title = 'Error';
-                break;
-            case 'info':
-                icon = 'ℹ️';
-                title = 'Info';
-                break;
-        }
-
-        ons.notification.alert({
-            message: `${icon} ${message}`,
-            title: title,
-            buttonLabel: 'OK'
-        });
-    }
-
-    exportData() {
-        const dataStr = JSON.stringify(this.books, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = 'my-reading-progress.json';
-        link.click();
-
-        this.showNotification('Reading progress exported successfully!', 'success');
-        hideUserMenu();
     }
 
     async startTrackingBook(bookId) {
