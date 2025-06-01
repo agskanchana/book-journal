@@ -327,8 +327,12 @@ class BookJournal {
 
     getEditFormData() {
         return {
+            name: this.getElementValue('editBookName'),
+            author: this.getElementValue('editAuthorName'),
             status: this.getElementValue('editStatus'),
+            category: this.getElementValue('editCategory'),
             current_page: this.getElementValue('editCurrentPage') || null,
+            total_pages: this.getElementValue('editTotalPages') || null,
             purchase_date: this.getElementValue('editPurchaseDate') || null,
             personal_notes: this.getElementValue('editSummary') || null
         };
@@ -669,14 +673,14 @@ class BookJournal {
         // Show different buttons based on whether user has started tracking or owns the book
         const actionButtons = book.created_by === this.currentUser.id
             ? `<button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
-                   ✏️ My Progress
+                   ✏️ Edit
                </button>
                <button class="action-btn btn-delete" onclick="bookJournal.deleteBook(${book.id})">
                    🗑️ Delete
                </button>`
             : book.hasProgress
             ? `<button class="action-btn btn-edit" onclick="bookJournal.editBookProgress(${book.id})">
-                   ✏️ My Progress
+                   ✏️ Edit
                </button>`
             : `<button class="action-btn btn-start" onclick="bookJournal.startTrackingBook(${book.id})">
                    📖 Start Reading
@@ -756,13 +760,23 @@ class BookJournal {
         }
 
         // Set current book for editing
-        this.editingBookId = bookId; // Use editingBookId instead of currentBookForUpdate
+        this.editingBookId = bookId;
 
-        // Populate form with current values
+        // Populate form with current values - FIX: Use correct field IDs
+        this.setElementValue('editBookName', book.name || '');
+        this.setElementValue('editAuthorName', book.author || '');
         this.setElementValue('editStatus', book.status || 'Not Read');
+        this.setElementValue('editCategory', book.category || '');
         this.setElementValue('editCurrentPage', book.current_page || '');
+        this.setElementValue('editTotalPages', book.total_pages || '');
         this.setElementValue('editPurchaseDate', book.purchase_date || '');
         this.setElementValue('editSummary', book.personal_notes || '');
+
+        // Show/hide current page field based on status
+        const editPageGroup = document.getElementById('editPageGroup');
+        if (editPageGroup) {
+            editPageGroup.style.display = book.status === 'Reading' ? 'block' : 'none';
+        }
 
         // Show the modal
         showEditBookModal();
@@ -798,8 +812,53 @@ class BookJournal {
 
         const formData = this.getEditFormData();
 
+        // Validation
+        if (!formData.name.trim() || !formData.author.trim()) {
+            ons.notification.alert({
+                message: '📝 Please fill in required fields (Book Name, Author)',
+                title: 'Missing Information',
+                buttonLabel: 'OK'
+            });
+            return;
+        }
+
+        if (formData.total_pages && (isNaN(formData.total_pages) || formData.total_pages < 1)) {
+            ons.notification.alert({
+                message: '📖 Total pages must be a valid number greater than 0',
+                title: 'Invalid Input',
+                buttonLabel: 'OK'
+            });
+            return;
+        }
+
+        if (formData.current_page && formData.total_pages && parseInt(formData.current_page) > parseInt(formData.total_pages)) {
+            ons.notification.alert({
+                message: '📄 Current page cannot exceed total pages',
+                title: 'Invalid Page Number',
+                buttonLabel: 'OK'
+            });
+            return;
+        }
+
         try {
-            // Check if progress record exists
+            // Update the shared book data (if user owns it)
+            const book = this.books.find(b => b.id === this.editingBookId);
+            if (book && book.created_by === this.currentUser.id) {
+                const { error: bookError } = await supabase
+                    .from('shared_books')
+                    .update({
+                        name: formData.name,
+                        author: formData.author,
+                        category: formData.category,
+                        total_pages: formData.total_pages ? parseInt(formData.total_pages) : null
+                    })
+                    .eq('id', this.editingBookId)
+                    .eq('created_by', this.currentUser.id);
+
+                if (bookError) throw bookError;
+            }
+
+            // Update or create user progress
             const { data: existingProgress } = await supabase
                 .from('user_reading_progress')
                 .select('*')
@@ -845,21 +904,21 @@ class BookJournal {
             }
 
             ons.notification.alert({
-                message: '✅ Progress updated successfully!',
+                message: '✅ Book updated successfully!',
                 title: 'Success',
                 buttonLabel: 'OK'
             });
 
             hideEditBookModal();
-            await this.loadBooks(); // Make sure this completes
+            await this.loadBooks();
 
             // Reset editing state
             this.editingBookId = null;
 
         } catch (error) {
-            console.error('Error updating progress:', error);
+            console.error('Error updating book:', error);
             ons.notification.alert({
-                message: `❌ Error updating progress: ${error.message}`,
+                message: `❌ Error updating book: ${error.message}`,
                 title: 'Error',
                 buttonLabel: 'OK'
             });
@@ -1204,10 +1263,17 @@ class BookJournal {
             preview.innerHTML = '';
         }
 
-        // Reset current book tracking
+        // Hide current page group by default
+        const currentPageGroup = document.getElementById('currentPageGroup');
+        if (currentPageGroup) {
+            currentPageGroup.style.display = 'none';
+        }
+
+        // Reset ALL modal states
+        this.editingBookId = null;
         this.currentBookForUpdate = null;
 
-        console.log('Add book form reset');
+        console.log('Add book form reset completely');
     }
 
     resetUpdateForm() {
@@ -1279,9 +1345,11 @@ function hideAddBookModal() {
     if (modal) {
         modal.style.display = 'none';
 
-        // Reset form when hiding
+        // Reset form and state when hiding
         if (window.bookJournal) {
             window.bookJournal.resetAddBookForm();
+            window.bookJournal.editingBookId = null; // Clear this
+            window.bookJournal.currentBookForUpdate = null; // Clear this
         }
 
         // Reset button state
@@ -1444,9 +1512,10 @@ function hideEditBookModal() {
     if (modal) {
         modal.style.display = 'none';
 
-        // Reset editing state
+        // Reset editing state completely
         if (window.bookJournal) {
             window.bookJournal.editingBookId = null;
+            window.bookJournal.currentBookForUpdate = null; // Clear this too
         }
     }
 }

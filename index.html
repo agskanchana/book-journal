@@ -224,28 +224,36 @@
             <div style="padding: 16px;">
                 <ons-list>
                     <!-- Book Title -->
-                    <div class="form-group">
-                        <label class="form-label" data-required="true">Book Name</label>
-                        <ons-input
-                            id="bookName"
-                            type="text"
-                            placeholder="Enter book name"
-                            required
-                            style="width: 100%; margin-bottom: 15px;">
-                        </ons-input>
-                    </div>
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-book" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="bookName"
+                                placeholder="Book Title *"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
 
                     <!-- Author -->
-                    <div class="form-group">
-                        <label class="form-label" data-required="true">Author</label>
-                        <ons-input
-                            id="authorName"
-                            type="text"
-                            placeholder="Enter author name"
-                            required
-                            style="width: 100%; margin-bottom: 15px;">
-                        </ons-input>
-                    </div>
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-account" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="authorName"
+                                placeholder="Author Name *"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
 
                     <!-- Status -->
                     <ons-list-item>
@@ -261,24 +269,30 @@
                         </div>
                     </ons-list-item>
 
-                    <!-- Genre -->
-                    <div class="form-group">
-                        <label class="form-label">Category</label>
-                        <ons-select
-                            id="category"
-                            style="width: 100%; margin-bottom: 15px;">
-                            <option value="">Select Category</option>
-                            <option value="Fiction">Fiction</option>
-                            <option value="Non-Fiction">Non-Fiction</option>
-                            <option value="Science">Science</option>
-                            <option value="Technology">Technology</option>
-                            <option value="Biography">Biography</option>
-                            <option value="History">History</option>
-                            <option value="Self-Help">Self-Help</option>
-                            <option value="Business">Business</option>
-                            <option value="Other">Other</option>
-                        </ons-select>
-                    </div>
+                    <!-- Category -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-label" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-select id="category" style="width: 100%;">
+                                <option value="">Select Category</option>
+                                <option value="Fiction">📚 Fiction</option>
+                                <option value="Non-Fiction">📖 Non-Fiction</option>
+                                <option value="Mystery">🕵️ Mystery</option>
+                                <option value="Romance">💕 Romance</option>
+                                <option value="Sci-Fi">🚀 Science Fiction</option>
+                                <option value="Fantasy">🧙 Fantasy</option>
+                                <option value="Biography">👤 Biography</option>
+                                <option value="History">🏛️ History</option>
+                                <option value="Self-Help">💡 Self-Help</option>
+                                <option value="Business">💼 Business</option>
+                                <option value="Technology">💻 Technology</option>
+                                <option value="Science">🔬 Science</option>
+                                <option value="Other">📚 Other</option>
+                            </ons-select>
+                        </div>
+                    </ons-list-item>
 
                     <!-- Purchase Date -->
                     <ons-list-item>
@@ -290,36 +304,46 @@
                                 id="purchaseDate"
                                 type="date"
                                 placeholder="Purchase Date"
+                                float
                                 style="width: 100%;">
                             </ons-input>
                         </div>
                     </ons-list-item>
 
-                    <!-- Total Pages (always shown) -->
-                    <div class="form-group">
-                        <label class="form-label" data-required="true">Total Pages</label>
-                        <ons-input
-                            id="totalPages"
-                            type="number"
-                            placeholder="Enter total number of pages"
-                            min="1"
-                            required
-                            style="width: 100%; margin-bottom: 15px;">
-                        </ons-input>
-                    </div>
+                    <!-- Total Pages -->
+                    <ons-list-item>
+                        <div class="left">
+                            <ons-icon icon="md-library-books" class="form-icon"></ons-icon>
+                        </div>
+                        <div class="center">
+                            <ons-input
+                                id="totalPages"
+                                type="number"
+                                placeholder="Total Pages *"
+                                min="1"
+                                float
+                                required
+                                style="width: 100%;">
+                            </ons-input>
+                        </div>
+                    </ons-list-item>
 
                     <!-- Current Page (shown when Reading) -->
                     <div id="currentPageGroup" style="display: none;">
-                        <div class="form-group">
-                            <label class="form-label">Current Page</label>
-                            <ons-input
-                                id="currentPage"
-                                type="number"
-                                placeholder="Enter current page"
-                                min="1"
-                                style="width: 100%; margin-bottom: 15px;">
-                            </ons-input>
-                        </div>
+                        <ons-list-item>
+                            <div class="left">
+                                <ons-icon icon="md-bookmark-outline" class="form-icon"></ons-icon>
+                            </div>
+                            <div class="center">
+                                <ons-input
+                                    id="currentPage"
+                                    type="number"
+                                    placeholder="Current Page"
+                                    min="1"
+                                    float
+                                    style="width: 100%;">
+                            </div>
+                        </ons-list-item>
                     </div>
 
                     <!-- Summary -->
@@ -425,7 +449,7 @@
                         </div>
                         <div class="center">
                             <ons-select id="editCategory" style="width: 100%;">
-                                <option value="">Select Genre</option>
+                                <option value="">Select Category</option>
                                 <option value="Fiction">📚 Fiction</option>
                                 <option value="Non-Fiction">📖 Non-Fiction</option>
                                 <option value="Mystery">🕵️ Mystery</option>
