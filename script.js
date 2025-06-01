@@ -185,9 +185,12 @@ class BookJournal {
             return;
         }
 
+        // Reset any previous modal state
+        this.currentBookForUpdate = null;
+
         const formData = this.getFormData();
 
-        // Updated validation with Onsen UI alerts
+        // Validation
         if (!formData.name.trim() || !formData.author.trim() || !formData.total_pages) {
             ons.notification.alert({
                 message: '📝 Please fill in all required fields:\n• Book Name\n• Author\n• Total Pages',
@@ -197,7 +200,6 @@ class BookJournal {
             return;
         }
 
-        // Validate total pages is a positive number
         if (formData.total_pages && (isNaN(formData.total_pages) || formData.total_pages < 1)) {
             ons.notification.alert({
                 message: '📖 Total pages must be a valid number greater than 0',
@@ -207,7 +209,6 @@ class BookJournal {
             return;
         }
 
-        // Additional validation for current page vs total pages
         if (formData.status === 'Reading' && formData.current_page && formData.total_pages) {
             if (parseInt(formData.current_page) > parseInt(formData.total_pages)) {
                 ons.notification.alert({
@@ -220,12 +221,23 @@ class BookJournal {
         }
 
         try {
-            this.showNotification('Adding book...', 'info');
+            // Show loading state
+            const saveButton = document.querySelector('.save-book-btn');
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.textContent = 'Adding...';
+            }
+
+            console.log('=== ADD BOOK DEBUG ===');
+            console.log('Form data:', formData);
+            console.log('Current user:', this.currentUser.id);
 
             // Upload image if provided
             let cover_url = null;
             if (formData.coverFile) {
+                console.log('Uploading image...');
                 cover_url = await this.uploadImage(formData.coverFile);
+                console.log('Image uploaded:', cover_url);
             }
 
             // First, add the book to shared_books
@@ -234,10 +246,12 @@ class BookJournal {
                 author: formData.author,
                 category: formData.category,
                 summary: formData.summary,
-                total_pages: parseInt(formData.total_pages), // Ensure it's stored as integer
+                total_pages: parseInt(formData.total_pages),
                 cover_url: cover_url,
                 created_by: this.currentUser.id
             };
+
+            console.log('Adding book to shared_books:', sharedBookData);
 
             const { data: bookData, error: bookError } = await supabase
                 .from('shared_books')
@@ -246,6 +260,8 @@ class BookJournal {
                 .single();
 
             if (bookError) throw bookError;
+
+            console.log('Book added to shared_books:', bookData);
 
             // Then, add the user's personal reading progress
             const progressData = {
@@ -257,18 +273,42 @@ class BookJournal {
                 started_reading_at: formData.status === 'Reading' ? new Date().toISOString() : null
             };
 
+            console.log('Adding progress data:', progressData);
+
             const { error: progressError } = await supabase
                 .from('user_reading_progress')
                 .insert([progressData]);
 
             if (progressError) throw progressError;
 
-            this.showNotification('Book added successfully!', 'success');
+            console.log('Progress added successfully');
+
+            ons.notification.alert({
+                message: '✅ Book added successfully!',
+                title: 'Success',
+                buttonLabel: 'OK'
+            });
+
+            // Close modal and reload
             hideAddBookModal();
             this.loadBooks();
+
+            console.log('=== ADD BOOK COMPLETED ===');
+
         } catch (error) {
             console.error('Error adding book:', error);
-            this.showNotification('Error adding book. Please try again.', 'error');
+            ons.notification.alert({
+                message: `❌ Error adding book: ${error.message}`,
+                title: 'Error',
+                buttonLabel: 'OK'
+            });
+        } finally {
+            // Reset button state
+            const saveButton = document.querySelector('.save-book-btn');
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Book';
+            }
         }
     }
 
@@ -696,53 +736,42 @@ class BookJournal {
         this.renderBooks(currentlyReading, 'currentlyReadingBooks');
     }
 
-    editBookProgress(id) {
-        const book = this.books.find(b => b.id === id);
-        if (!book) return;
-
-        this.editingBookId = id;
-
-        // For editing progress, we only allow editing user-specific fields
-        this.setElementValue('editStatus', book.status);
-        this.setElementValue('editCurrentPage', book.current_page || '');
-        this.setElementValue('editPurchaseDate', book.purchase_date || '');
-        this.setElementValue('editSummary', book.personal_notes || '');
-
-        // Update labels for clarity
-        const editBookNameField = document.getElementById('editBookName');
-        const editAuthorField = document.getElementById('editAuthorName');
-        const editCategoryField = document.getElementById('editCategory');
-        const editTotalPagesField = document.getElementById('editTotalPages');
-
-        // Make book info read-only and show current values
-        if (editBookNameField) {
-            editBookNameField.value = book.name;
-            editBookNameField.disabled = true;
-        }
-        if (editAuthorField) {
-            editAuthorField.value = book.author;
-            editAuthorField.disabled = true;
-        }
-        if (editCategoryField) {
-            editCategoryField.value = book.category || '';
-            editCategoryField.disabled = true;
-        }
-        if (editTotalPagesField) {
-            editTotalPagesField.value = book.total_pages || '';
-            editTotalPagesField.disabled = true;
+    async editBookProgress(bookId) {
+        if (!this.currentUser) {
+            ons.notification.alert({
+                message: '🔒 Please sign in to edit progress',
+                title: 'Authentication Required',
+                buttonLabel: 'OK'
+            });
+            return;
         }
 
-        // Show/hide page fields based on status
-        const editPageGroup = document.getElementById('editPageGroup');
-        if (editPageGroup) {
-            editPageGroup.style.display = book.status === 'Reading' ? 'block' : 'none';
+        // Reset any previous state
+        this.resetUpdateForm();
+
+        const book = this.books.find(b => b.id === bookId);
+        if (!book) {
+            ons.notification.alert({
+                message: '❌ Book not found',
+                title: 'Error',
+                buttonLabel: 'OK'
+            });
+            return;
         }
 
-        // Show edit modal
-        const modal = document.getElementById('editBookModal');
-        if (modal) {
-            modal.show();
-        }
+        // Set current book for update
+        this.currentBookForUpdate = bookId;
+
+        // Populate form with current values
+        this.setElementValue('updateCurrentPage', book.current_page || '');
+        this.setElementValue('updateStatus', book.status || 'Not Read');
+        this.setElementValue('updatePurchaseDate', book.purchase_date || '');
+        this.setElementValue('updateNotes', book.personal_notes || '');
+
+        // Show the modal
+        showUpdateModal();
+
+        console.log('Edit progress for book:', bookId, book);
     }
 
     setElementValue(id, value) {
@@ -1129,6 +1158,48 @@ class BookJournal {
             });
         }
     }
+
+    resetAddBookForm() {
+        // Reset all form fields
+        this.setElementValue('bookName', '');
+        this.setElementValue('authorName', '');
+        this.setElementValue('totalPages', '');
+        this.setElementValue('category', '');
+        this.setElementValue('summary', '');
+        this.setElementValue('status', 'Not Read');
+        this.setElementValue('currentPage', '');
+        this.setElementValue('purchaseDate', '');
+
+        // Reset file input
+        const fileInput = document.getElementById('bookCover');
+        if (fileInput) {
+            fileInput.value = '';
+        }
+
+        // Reset preview
+        const preview = document.getElementById('imagePreview');
+        if (preview) {
+            preview.innerHTML = '';
+        }
+
+        // Reset current book tracking
+        this.currentBookForUpdate = null;
+
+        console.log('Add book form reset');
+    }
+
+    resetUpdateForm() {
+        // Reset update form fields
+        this.setElementValue('updateCurrentPage', '');
+        this.setElementValue('updateStatus', 'Not Read');
+        this.setElementValue('updatePurchaseDate', '');
+        this.setElementValue('updateNotes', '');
+
+        // Reset current book tracking
+        this.currentBookForUpdate = null;
+
+        console.log('Update form reset');
+    }
 }
 
 // Authentication Functions
@@ -1162,36 +1233,58 @@ async function signOut() {
 
 // Modal Functions
 function showAddBookModal() {
+    // Reset form before showing modal
+    if (window.bookJournal) {
+        window.bookJournal.resetAddBookForm();
+    }
+
     const modal = document.getElementById('addBookModal');
     if (modal) {
-        modal.show();
+        modal.style.display = 'block';
+
+        // Reset button state
+        const saveButton = document.querySelector('.save-book-btn');
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Book';
+        }
     }
 }
 
 function hideAddBookModal() {
     const modal = document.getElementById('addBookModal');
     if (modal) {
-        modal.hide();
-    }
-    clearAddForm();
-}
+        modal.style.display = 'none';
 
-function hideEditBookModal() {
-    const modal = document.getElementById('editBookModal');
-    if (modal) {
-        modal.hide();
-        // Re-enable fields that were disabled
-        ['editBookName', 'editAuthorName', 'editCategory', 'editTotalPages'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) element.disabled = false;
-        });
+        // Reset form when hiding
+        if (window.bookJournal) {
+            window.bookJournal.resetAddBookForm();
+        }
     }
 }
 
-function hideProgressModal() {
-    const modal = document.getElementById('progressModal');
+// Add similar functions for update modal:
+function showUpdateModal() {
+    // Reset form before showing modal
+    if (window.bookJournal) {
+        window.bookJournal.resetUpdateForm();
+    }
+
+    const modal = document.getElementById('updateProgressModal');
     if (modal) {
-        modal.hide();
+        modal.style.display = 'block';
+    }
+}
+
+function hideUpdateModal() {
+    const modal = document.getElementById('updateProgressModal');
+    if (modal) {
+        modal.style.display = 'none';
+
+        // Reset form when hiding
+        if (window.bookJournal) {
+            window.bookJournal.resetUpdateForm();
+        }
     }
 }
 
