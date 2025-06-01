@@ -1,15 +1,15 @@
 const CACHE_NAME = 'book-journal-v1.0.0';
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = './offline.html';
 
 // Files to cache for offline functionality
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/script.js',
-  '/pwa.js',
-  '/offline.html',
-  '/manifest.json',
+  './',
+  './index.html',
+  './styles.css',
+  './script.js',
+  './pwa.js',
+  './offline.html',
+  './manifest.json',
   // Onsen UI files
   'https://unpkg.com/onsenui/css/onsenui.css',
   'https://unpkg.com/onsenui/css/onsen-css-components.min.css',
@@ -17,7 +17,6 @@ const urlsToCache = [
   // External libraries
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
-
 // Install event - cache resources
 self.addEventListener('install', (event) => {
   console.log('[SW] Install event');
@@ -114,8 +113,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: event.data ? event.data.text() : 'New reading progress available!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
+    icon: './icons/icon-192x192.png',
+    badge: './icons/badge-72x72.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),

@@ -29,7 +29,7 @@ class PWAManager {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        this.swRegistration = await navigator.serviceWorker.register('/sw.js');
+        this.swRegistration = await navigator.serviceWorker.register('./sw.js');
         console.log('✅ Service Worker registered:', this.swRegistration);
 
         this.swRegistration.addEventListener('updatefound', () => {
@@ -178,6 +178,9 @@ class PWAManager {
           }, 1000);
           break;
       }
+
+      // Clean up the URL
+      window.history.replaceState({}, document.title, './');
     }
   }
 
