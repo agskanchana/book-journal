@@ -126,14 +126,51 @@
                 </ons-row>
             </div>
 
-            <!-- Search -->
+            <!-- Search and Filter -->
             <ons-card style="margin: 16px 0;">
                 <div class="card-content">
-                    <ons-search-input
-                        id="searchInput"
-                        placeholder="Search books by title or author..."
-                        style="width: 100%;">
-                    </ons-search-input>
+                    <ons-row>
+                        <ons-col width="60%">
+                            <ons-search-input
+                                id="searchInput"
+                                placeholder="Search books..."
+                                style="width: 100%; margin-bottom: 10px;">
+                            </ons-search-input>
+                        </ons-col>
+                        <ons-col width="40%">
+                            <ons-select id="categoryFilter" style="width: 100%;">
+                                <option value="">All Categories</option>
+                                <option value="Fiction">📚 Fiction</option>
+                                <option value="Non-Fiction">📖 Non-Fiction</option>
+                                <option value="Mystery">🕵️ Mystery</option>
+                                <option value="Romance">💕 Romance</option>
+                                <option value="Sci-Fi">🚀 Science Fiction</option>
+                                <option value="Fantasy">🧙 Fantasy</option>
+                                <option value="Biography">👤 Biography</option>
+                                <option value="History">🏛️ History</option>
+                                <option value="Self-Help">💡 Self-Help</option>
+                                <option value="Business">💼 Business</option>
+                                <option value="Technology">💻 Technology</option>
+                                <option value="Science">🔬 Science</option>
+                                <option value="Law">⚖️ Law</option>
+                                <option value="Law Reports">📋 Law Reports</option>
+                                <option value="Education">🎓 Education</option>
+                                <option value="Other">📚 Other</option>
+                            </ons-select>
+                        </ons-col>
+                    </ons-row>
+
+                    <!-- Pagination Controls -->
+                    <div class="pagination-controls">
+                        <div class="pagination-info">
+                            <span id="paginationInfo">Showing 0 of 0 books</span>
+                        </div>
+                        <div class="pagination-buttons">
+                            <ons-button id="prevBtn" size="small" disabled>← Previous</ons-button>
+                            <span id="pageNumbers" class="page-numbers"></span>
+                            <ons-button id="nextBtn" size="small" disabled>Next →</ons-button>
+                        </div>
+                    </div>
                 </div>
             </ons-card>
 
@@ -153,10 +190,26 @@
                 <div id="currentlyReadingBooks"></div>
             </div>
 
-            <!-- All Books Section -->
+            <!-- All Books Section with Pagination -->
             <div id="library-section" style="display: none;">
                 <h3 class="section-title">📚 My Library</h3>
-                <div id="allBooks"></div>
+                <div id="books-list">
+                    <div id="allBooks" class="list"></div>
+                </div>
+
+                <!-- Bottom Pagination -->
+                <div class="bottom-pagination">
+                    <div class="pagination-controls">
+                        <div class="pagination-info">
+                            <span id="bottomPaginationInfo">Showing 0 of 0 books</span>
+                        </div>
+                        <div class="pagination-buttons">
+                            <ons-button id="bottomPrevBtn" size="small" disabled>← Previous</ons-button>
+                            <span id="bottomPageNumbers" class="page-numbers"></span>
+                            <ons-button id="bottomNextBtn" size="small" disabled>Next →</ons-button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -626,6 +679,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://widget.cloudinary.com/v2.0/global/all.js"></script>
     <script src="https://kit.fontawesome.com/81356f0d9c.js" crossorigin="anonymous"></script>
+    <!-- List.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/list.js@2.3.1/dist/list.min.js"></script>
     <script src="script.js"></script>
     <script src="pwa.js"></script>
 </body>

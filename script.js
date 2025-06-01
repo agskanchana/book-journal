@@ -16,6 +16,10 @@ class BookJournal {
         this.editingBookId = null;
         this.currentBookForUpdate = null;
         this.currentUser = null;
+        this.booksList = null; // List.js instance for pagination
+        this.currentPage = 1;
+        this.itemsPerPage = 20; // Show 20 books per page
+        this.filteredBooks = [];
         this.init();
     }
 
@@ -140,13 +144,24 @@ class BookJournal {
             // Remove existing listener to prevent duplicates
             searchInput.removeEventListener('input', this.searchHandler);
 
-            // Create bound handler
+            // Create bound handler for combined search and pagination
             this.searchHandler = (e) => {
-                this.searchBooks(e.target.value);
+                this.handleSearchAndFilter();
             };
 
             searchInput.addEventListener('input', this.searchHandler);
         }
+
+        // Category filter listener
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', () => {
+                this.handleSearchAndFilter();
+            });
+        }
+
+        // Setup pagination button listeners
+        this.setupPaginationListeners();
 
         // Setup file input listener properly
         this.setupFileInputListener();
@@ -155,34 +170,178 @@ class BookJournal {
         this.setupProgressListeners();
     }
 
-    setupStatusChangeListeners() {
-        // Add listener for add book modal
-        document.addEventListener('change', (e) => {
-            if (e.target.id === 'status') {
-                const currentPageGroup = document.getElementById('currentPageGroup');
-                if (currentPageGroup) {
-                    currentPageGroup.style.display = e.target.value === 'Reading' ? 'block' : 'none';
-                }
-            }
+    setupPaginationListeners() {
+        // Top pagination
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
 
-            if (e.target.id === 'editStatus') {
-                const editPageGroup = document.getElementById('editPageGroup');
-                if (editPageGroup) {
-                    editPageGroup.style.display = e.target.value === 'Reading' ? 'block' : 'none';
-                }
-            }
-        });
+        // Bottom pagination
+        const bottomPrevBtn = document.getElementById('bottomPrevBtn');
+        const bottomNextBtn = document.getElementById('bottomNextBtn');
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => this.goToPreviousPage());
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => this.goToNextPage());
+        }
+        if (bottomPrevBtn) {
+            bottomPrevBtn.addEventListener('click', () => this.goToPreviousPage());
+        }
+        if (bottomNextBtn) {
+            bottomNextBtn.addEventListener('click', () => this.goToNextPage());
+        }
     }
 
-    setupProgressListeners() {
-        const updateCurrentPage = document.getElementById('updateCurrentPage');
-        const updateTotalPages = document.getElementById('updateTotalPages');
+    handleSearchAndFilter() {
+        const searchValue = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const categoryValue = document.getElementById('categoryFilter')?.value || '';
 
-        if (updateCurrentPage) {
-            updateCurrentPage.addEventListener('input', () => this.updateProgressDisplay());
+        // Filter books based on search and category
+        this.filteredBooks = this.books.filter(book => {
+            const matchesSearch = !searchValue ||
+                book.name.toLowerCase().includes(searchValue) ||
+                book.author.toLowerCase().includes(searchValue) ||
+                (book.category && book.category.toLowerCase().includes(searchValue));
+
+            const matchesCategory = !categoryValue || book.category === categoryValue;
+
+            return matchesSearch && matchesCategory;
+        });
+
+        // Reset to first page when filtering
+        this.currentPage = 1;
+        this.renderPaginatedBooks();
+    }
+
+    renderPaginatedBooks() {
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        const endIndex = startIndex + this.itemsPerPage;
+        const currentPageBooks = this.filteredBooks.slice(startIndex, endIndex);
+
+        // Render books for current page
+        this.renderBooks(currentPageBooks, 'allBooks');
+
+        // Update pagination info and controls
+        this.updatePaginationInfo();
+        this.updatePaginationControls();
+    }
+
+    updatePaginationInfo() {
+        const totalBooks = this.filteredBooks.length;
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage + 1;
+        const endIndex = Math.min(this.currentPage * this.itemsPerPage, totalBooks);
+
+        const infoText = totalBooks > 0
+            ? `Showing ${startIndex}-${endIndex} of ${totalBooks} books`
+            : 'No books found';
+
+        // Update both pagination info elements
+        const paginationInfo = document.getElementById('paginationInfo');
+        const bottomPaginationInfo = document.getElementById('bottomPaginationInfo');
+
+        if (paginationInfo) paginationInfo.textContent = infoText;
+        if (bottomPaginationInfo) bottomPaginationInfo.textContent = infoText;
+    }
+
+    updatePaginationControls() {
+        const totalPages = Math.ceil(this.filteredBooks.length / this.itemsPerPage);
+
+        // Update previous buttons
+        const prevBtn = document.getElementById('prevBtn');
+        const bottomPrevBtn = document.getElementById('bottomPrevBtn');
+        const hasPrevious = this.currentPage > 1;
+
+        if (prevBtn) prevBtn.disabled = !hasPrevious;
+        if (bottomPrevBtn) bottomPrevBtn.disabled = !hasPrevious;
+
+        // Update next buttons
+        const nextBtn = document.getElementById('nextBtn');
+        const bottomNextBtn = document.getElementById('bottomNextBtn');
+        const hasNext = this.currentPage < totalPages;
+
+        if (nextBtn) nextBtn.disabled = !hasNext;
+        if (bottomNextBtn) bottomNextBtn.disabled = !hasNext;
+
+        // Update page numbers
+        this.updatePageNumbers(totalPages);
+    }
+
+    updatePageNumbers(totalPages) {
+        const pageNumbersTop = document.getElementById('pageNumbers');
+        const pageNumbersBottom = document.getElementById('bottomPageNumbers');
+
+        const pageNumbersHtml = this.generatePageNumbersHtml(totalPages);
+
+        if (pageNumbersTop) pageNumbersTop.innerHTML = pageNumbersHtml;
+        if (pageNumbersBottom) pageNumbersBottom.innerHTML = pageNumbersHtml;
+    }
+
+    generatePageNumbersHtml(totalPages) {
+        if (totalPages <= 1) return '<span class="page-current">1</span>';
+
+        let html = '';
+        const maxVisible = 5; // Show max 5 page numbers
+        let startPage = Math.max(1, this.currentPage - Math.floor(maxVisible / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+        // Adjust start page if we're near the end
+        if (endPage - startPage < maxVisible - 1) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
         }
-        if (updateTotalPages) {
-            updateTotalPages.addEventListener('input', () => this.updateProgressDisplay());
+
+        // Add first page and ellipsis if needed
+        if (startPage > 1) {
+            html += `<span class="page-number" onclick="window.bookJournal.goToPage(1)">1</span>`;
+            if (startPage > 2) {
+                html += '<span class="page-ellipsis">...</span>';
+            }
+        }
+
+        // Add page numbers
+        for (let i = startPage; i <= endPage; i++) {
+            if (i === this.currentPage) {
+                html += `<span class="page-current">${i}</span>`;
+            } else {
+                html += `<span class="page-number" onclick="window.bookJournal.goToPage(${i})">${i}</span>`;
+            }
+        }
+
+        // Add last page and ellipsis if needed
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += '<span class="page-ellipsis">...</span>';
+            }
+            html += `<span class="page-number" onclick="window.bookJournal.goToPage(${totalPages})">${totalPages}</span>`;
+        }
+
+        return html;
+    }
+
+    goToPage(page) {
+        const totalPages = Math.ceil(this.filteredBooks.length / this.itemsPerPage);
+        if (page >= 1 && page <= totalPages) {
+            this.currentPage = page;
+            this.renderPaginatedBooks();
+
+            // Scroll to top of book list
+            const librarySection = document.getElementById('library-section');
+            if (librarySection) {
+                librarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
+
+    goToNextPage() {
+        const totalPages = Math.ceil(this.filteredBooks.length / this.itemsPerPage);
+        if (this.currentPage < totalPages) {
+            this.goToPage(this.currentPage + 1);
+        }
+    }
+
+    goToPreviousPage() {
+        if (this.currentPage > 1) {
+            this.goToPage(this.currentPage - 1);
         }
     }
 
@@ -687,10 +846,16 @@ class BookJournal {
 
     displayBooks() {
         const currentlyReading = this.books.filter(book => book.status === 'Reading');
-        const allBooks = this.books;
 
+        // Always show all currently reading books (no pagination for this section)
         this.renderBooks(currentlyReading, 'currentlyReadingBooks');
-        this.renderBooks(allBooks, 'allBooks');
+
+        // Initialize filtered books for library section
+        this.filteredBooks = this.books;
+        this.currentPage = 1;
+
+        // Render paginated library view
+        this.renderPaginatedBooks();
     }
 
     renderBooks(books, containerId) {
@@ -802,21 +967,9 @@ class BookJournal {
     }
 
     searchBooks(query) {
-        if (!query.trim()) {
-            this.displayBooks();
-            return;
-        }
-
-        const filteredBooks = this.books.filter(book =>
-            book.name.toLowerCase().includes(query.toLowerCase()) ||
-            book.author.toLowerCase().includes(query.toLowerCase()) ||
-            (book.category && book.category.toLowerCase().includes(query.toLowerCase()))
-        );
-
-        this.renderBooks(filteredBooks, 'allBooks');
-
-        const currentlyReading = filteredBooks.filter(book => book.status === 'Reading');
-        this.renderBooks(currentlyReading, 'currentlyReadingBooks');
+        // This method is now handled by handleSearchAndFilter
+        // Keep for backward compatibility but redirect to new method
+        this.handleSearchAndFilter();
     }
 
     async editBookProgress(bookId) {

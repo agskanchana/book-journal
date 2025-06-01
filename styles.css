@@ -1254,3 +1254,155 @@ ons-modal[style*="block"] {
 .camera-controls {
     display: none !important;
 }
+/* ...existing styles... */
+
+/* Pagination Styles */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pagination-info {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 8px;
+}
+
+.page-number, .page-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0 8px;
+}
+
+.page-number {
+    background: #f8f9fa;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+.page-number:hover {
+    background: #e9ecef;
+    color: #495057;
+    border-color: #adb5bd;
+}
+
+.page-current {
+    background: #4285f4;
+    color: white;
+    border: 1px solid #4285f4;
+}
+
+.page-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Bottom pagination spacing */
+.bottom-pagination {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Pagination button styling */
+#prevBtn, #nextBtn, #bottomPrevBtn, #bottomNextBtn {
+    min-width: 80px;
+    font-size: 0.85rem;
+}
+
+/* Category filter responsive */
+@media (max-width: 768px) {
+    .pagination-controls {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .pagination-buttons {
+        justify-content: center;
+    }
+
+    .page-numbers {
+        justify-content: center;
+        margin: 8px 0;
+    }
+}
+
+/* Filter section styling */
+.filter-section {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.filter-section ons-col {
+    padding: 0 4px;
+}
+
+/* Loading state for pagination */
+.pagination-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Smooth transition for book list */
+#allBooks {
+    transition: opacity 0.3s ease;
+}
+
+#allBooks.loading {
+    opacity: 0.7;
+}
+
+/* Improved spacing for mobile */
+@media (max-width: 480px) {
+    .pagination-controls {
+        padding: 8px;
+        margin: 12px 0;
+    }
+
+    .page-number, .page-current {
+        min-width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+    }
+
+    #prevBtn, #nextBtn, #bottomPrevBtn, #bottomNextBtn {
+        min-width: 70px;
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+}
+
+/* ...rest of existing styles... */
