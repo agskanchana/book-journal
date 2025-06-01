@@ -405,6 +405,8 @@ class BookJournal {
     async loadBooks() {
         if (!this.currentUser) return;
 
+        console.log('Loading books for user:', this.currentUser.id);
+
         try {
             // Load ALL shared books with user's personal progress (if any)
             const { data: booksData, error: booksError } = await supabase
@@ -424,6 +426,8 @@ class BookJournal {
                 .order('created_at', { ascending: false });
 
             if (booksError) throw booksError;
+
+            console.log('Raw books data from database:', booksData);
 
             // Get unique creator IDs
             const creatorIds = [...new Set(booksData.map(book => book.created_by))];
@@ -471,6 +475,9 @@ class BookJournal {
                     hasProgress: !!progress.status
                 };
             });
+
+            console.log('Transformed books:', this.books);
+            console.log('Total books loaded:', this.books.length);
 
             this.displayBooks();
             this.updateStats();
@@ -940,25 +947,75 @@ class BookJournal {
     // Add this helper method for the actual deletion:
     async performDelete(id) {
         try {
-            // First, delete all user reading progress for this book
-            const { error: progressError } = await supabase
+            console.log('=== DELETE DEBUG INFO ===');
+            console.log('Attempting to delete book with ID:', id);
+            console.log('Current user ID:', this.currentUser.id);
+
+            // First check if the book exists and user owns it
+            const { data: bookCheck, error: checkError } = await supabase
+                .from('shared_books')
+                .select('id, name, created_by')
+                .eq('id', id)
+                .single();
+
+            if (checkError) {
+                console.error('Error checking book:', checkError);
+                throw checkError;
+            }
+
+            console.log('Book found:', bookCheck);
+
+            if (bookCheck.created_by !== this.currentUser.id) {
+                ons.notification.alert({
+                    message: '❌ You do not have permission to delete this book',
+                    title: 'Permission Denied',
+                    buttonLabel: 'OK'
+                });
+                return;
+            }
+
+            // Delete progress records first (for ALL users, not just current user)
+            console.log('Deleting all progress records for book ID:', id);
+            const { data: deletedProgress, error: progressError } = await supabase
                 .from('user_reading_progress')
                 .delete()
-                .eq('book_id', id);
+                .eq('book_id', id)
+                .select(); // Add select to see what was deleted
 
             if (progressError) {
                 console.error('Error deleting progress records:', progressError);
-                // Continue anyway, might not have progress records
+            } else {
+                console.log('Deleted progress records:', deletedProgress);
             }
 
-            // Then delete the book itself
-            const { error: bookError } = await supabase
+            // Delete the book
+            console.log('Deleting book...');
+            const { data: deletedBook, error: bookError } = await supabase
                 .from('shared_books')
                 .delete()
                 .eq('id', id)
-                .eq('created_by', this.currentUser.id);
+                .eq('created_by', this.currentUser.id)
+                .select(); // Add select to see what was deleted
 
-            if (bookError) throw bookError;
+            if (bookError) {
+                console.error('Error deleting book:', bookError);
+                throw bookError;
+            }
+
+            console.log('Deleted book:', deletedBook);
+
+            if (!deletedBook || deletedBook.length === 0) {
+                ons.notification.alert({
+                    message: '❌ No book was deleted. You may not have permission.',
+                    title: 'Delete Failed',
+                    buttonLabel: 'OK'
+                });
+                return;
+            }
+
+            // Force reload books after successful deletion
+            console.log('Reloading books...');
+            await this.loadBooks();
 
             ons.notification.alert({
                 message: '✅ Book deleted successfully!',
@@ -966,7 +1023,7 @@ class BookJournal {
                 buttonLabel: 'OK'
             });
 
-            this.loadBooks();
+            console.log('=== DELETE COMPLETED ===');
         } catch (error) {
             console.error('Error deleting book:', error);
             ons.notification.alert({
