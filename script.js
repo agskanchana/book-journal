@@ -362,10 +362,10 @@ class BookJournal {
     async uploadImage(file) {
         try {
             // Resize image to 350px width before uploading
-            const resizedFile = await this.resizeImage(file, 350);
+            const resizedFile = await this.resizeImage(file, 350);  // ← This resizes first
 
             const formData = new FormData();
-            formData.append('file', resizedFile);
+            formData.append('file', resizedFile);  // ← Uploads resized file
             formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
             const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
@@ -389,7 +389,7 @@ class BookJournal {
             const img = new Image();
 
             img.onload = () => {
-                // Calculate new dimensions
+                // Calculate new dimensions - maintains aspect ratio
                 const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
                 const newWidth = img.width * ratio;
                 const newHeight = img.height * ratio;
@@ -401,15 +401,14 @@ class BookJournal {
                 // Draw and resize image
                 ctx.drawImage(img, 0, 0, newWidth, newHeight);
 
-                // Convert canvas to blob
+                // Convert canvas to blob with 80% quality
                 canvas.toBlob((blob) => {
-                    // Create new file with same name and type
                     const resizedFile = new File([blob], file.name, {
                         type: file.type,
                         lastModified: Date.now()
                     });
                     resolve(resizedFile);
-                }, file.type, 0.8); // 0.8 quality for JPEG compression
+                }, file.type, 0.8); // ← 80% JPEG quality
             };
 
             img.src = URL.createObjectURL(file);
