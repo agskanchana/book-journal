@@ -858,7 +858,7 @@ class BookJournal {
             editPageGroup.style.display = book.status === 'Reading' ? 'block' : 'none';
         }
 
-        // Show the modal
+        // Show the modal.
         showEditBookModal();
 
         console.log('Edit progress for book:', bookId, book);
