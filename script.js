@@ -139,48 +139,58 @@ class BookJournal {
     }
 
     setupEventListeners() {
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            // Remove existing listener to prevent duplicates
-            searchInput.removeEventListener('input', this.searchHandler);
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        // Remove existing listener to prevent duplicates
+        searchInput.removeEventListener('input', this.searchHandler);
 
-            // Create bound handler for combined search and pagination
-            this.searchHandler = (e) => {
-                this.handleSearchAndFilter();
-            };
+        // Create bound handler for combined search and pagination
+        this.searchHandler = (e) => {
+            this.handleSearchAndFilter();
+        };
 
-            searchInput.addEventListener('input', this.searchHandler);
-        }
-
-        // Category filter listener
-        const categoryFilter = document.getElementById('categoryFilter');
-        if (categoryFilter) {
-            categoryFilter.addEventListener('change', () => {
-                this.handleSearchAndFilter();
-            });
-        }
-
-        // Setup pagination button listeners
-        this.setupPaginationListeners();
-
-        // Setup file input listener properly
-        this.setupFileInputListener();
-
-        this.setupStatusChangeListeners();
-        this.setupProgressListeners();
-
-        // Add event delegation for book action buttons
-        this.setupBookActionListeners();
-
-        // Add save button listener as backup
-        const addBookSaveBtn = document.getElementById('addBookSaveBtn');
-        if (addBookSaveBtn) {
-            addBookSaveBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.addBook();
-            });
-        }
+        searchInput.addEventListener('input', this.searchHandler);
     }
+
+    // Category filter listener
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', () => {
+            this.handleSearchAndFilter();
+        });
+    }
+
+    // Setup pagination button listeners
+    this.setupPaginationListeners();
+
+    // Setup file input listener properly
+    this.setupFileInputListener();
+
+    // Add these method calls
+    this.setupStatusChangeListeners();
+    this.setupProgressListeners();
+
+    // Add event delegation for book action buttons
+    this.setupBookActionListeners();
+
+    // Add save button listener as backup - UPDATED
+    const addBookSaveBtn = document.getElementById('addBookSaveBtn');
+    if (addBookSaveBtn) {
+        // Remove existing listeners first
+        addBookSaveBtn.removeEventListener('click', this.saveHandler);
+
+        // Create bound handler
+        this.saveHandler = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Save button clicked via event listener');
+            this.addBook();
+        };
+
+        addBookSaveBtn.addEventListener('click', this.saveHandler);
+        console.log('Add book save button listener attached');
+    }
+}
 
     setupBookActionListeners() {
         // Event delegation for currently reading books
@@ -201,34 +211,45 @@ class BookJournal {
     }
 
     handleBookAction(e) {
-        const button = e.target.closest('.action-btn');
-        if (!button) return;
+    const button = e.target.closest('.action-btn');
+    if (!button) return;
 
-        const action = button.getAttribute('data-action');
-        const bookId = parseInt(button.getAttribute('data-book-id'));
+    const action = button.getAttribute('data-action');
+    const bookId = parseInt(button.getAttribute('data-book-id'));
 
-        if (!action || !bookId) return;
+    console.log('Button clicked:', { action, bookId, button });
 
-        e.preventDefault();
-        e.stopPropagation();
-
-        switch (action) {
-            case 'edit':
-                this.editBookProgress(bookId);
-                break;
-            case 'delete':
-                this.deleteBook(bookId);
-                break;
-            case 'start-tracking':
-                this.startTrackingBook(bookId);
-                break;
-            case 'progress':
-                this.openProgressModal(bookId);
-                break;
-            default:
-                console.warn('Unknown action:', action);
-        }
+    if (!action || !bookId) {
+        console.error('Missing action or bookId:', { action, bookId });
+        return;
     }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    console.log('Executing action:', action, 'for book:', bookId);
+
+    switch (action) {
+        case 'edit':
+            console.log('Calling editBookProgress');
+            this.editBookProgress(bookId);
+            break;
+        case 'delete':
+            console.log('Calling deleteBook');
+            this.deleteBook(bookId);
+            break;
+        case 'start-tracking':
+            console.log('Calling startTrackingBook');
+            this.startTrackingBook(bookId);
+            break;
+        case 'progress':
+            console.log('Calling openProgressModal');
+            this.openProgressModal(bookId);
+            break;
+        default:
+            console.warn('Unknown action:', action);
+    }
+}
 
     setupPaginationListeners() {
         // Top pagination
@@ -1237,21 +1258,24 @@ class BookJournal {
         }
     }
 
-    openProgressModal(bookId) {
-        this.currentBookForUpdate = bookId;
-        const book = this.books.find(b => b.id === bookId);
 
-        if (book) {
-            this.setElementValue('updateCurrentPage', book.current_page || '');
-            this.setElementValue('updateTotalPages', book.total_pages || '');
-            this.updateProgressDisplay();
-        }
+openProgressModal(bookId) {
+    this.currentBookForUpdate = bookId;
+    const book = this.books.find(b => b.id === bookId);
 
-        const modal = document.getElementById('progressModal');
-        if (modal) {
-            modal.show();
-        }
+    if (book) {
+        this.setElementValue('updateCurrentPage', book.current_page || '');
+        this.setElementValue('updateTotalPages', book.total_pages || '');
+        this.updateProgressDisplay();
     }
+
+    const modal = document.getElementById('progressModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+
 
     updateProgressDisplay() {
         const currentPage = parseInt(this.getElementValue('updateCurrentPage')) || 0;
@@ -1688,6 +1712,48 @@ class BookJournal {
             console.log('File input listener setup completed');
         }
     }
+
+    setupStatusChangeListeners() {
+        // Status change listener for add book form
+        const statusSelect = document.getElementById('status');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', (e) => {
+                const currentPageGroup = document.getElementById('currentPageGroup');
+                if (currentPageGroup) {
+                    currentPageGroup.style.display = e.target.value === 'Reading' ? 'block' : 'none';
+                }
+            });
+        }
+
+        // Status change listener for edit book form
+        const editStatusSelect = document.getElementById('editStatus');
+        if (editStatusSelect) {
+            editStatusSelect.addEventListener('change', (e) => {
+                const editPageGroup = document.getElementById('editPageGroup');
+                if (editPageGroup) {
+                    editPageGroup.style.display = e.target.value === 'Reading' ? 'block' : 'none';
+                }
+            });
+        }
+    }
+
+    setupProgressListeners() {
+        // Progress update listeners for the progress modal
+        const updateCurrentPage = document.getElementById('updateCurrentPage');
+        const updateTotalPages = document.getElementById('updateTotalPages');
+
+        if (updateCurrentPage) {
+            updateCurrentPage.addEventListener('input', () => {
+                this.updateProgressDisplay();
+            });
+        }
+
+        if (updateTotalPages) {
+            updateTotalPages.addEventListener('input', () => {
+                this.updateProgressDisplay();
+            });
+        }
+    }
 }
 
 // Authentication Functions
@@ -1910,18 +1976,27 @@ function exportData() {
 
 // Book Functions
 function submitBook() {
+    console.log('submitBook called, window.bookJournal:', window.bookJournal);
     if (window.bookJournal) {
         window.bookJournal.addBook();
+    } else {
+        console.error('BookJournal instance not found');
+        ons.notification.alert({
+            message: '❌ Application not ready. Please refresh the page.',
+            title: 'Error',
+            buttonLabel: 'OK'
+        });
     }
 }
-
 function saveEditedBook() {
+    console.log('saveEditedBook called');
     if (window.bookJournal) {
         window.bookJournal.saveEditedBook();
     }
 }
 
 function updateBookProgress() {
+    console.log('updateBookProgress called');
     if (window.bookJournal) {
         window.bookJournal.updateBookProgress();
     }
@@ -1970,7 +2045,7 @@ function hideEditBookModal() {
         // Reset editing state completely
         if (window.bookJournal) {
             window.bookJournal.editingBookId = null;
-            window.bookJournal.currentBookForUpdate = null; // Clear this too
+            window.bookJournal.currentBookForUpdate = null;
         }
     }
 }
@@ -1986,4 +2061,3 @@ function hideProgressModal() {
         }
     }
 }
-
