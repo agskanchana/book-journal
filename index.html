@@ -376,36 +376,18 @@
                             <ons-icon icon="md-photo" class="form-icon"></ons-icon>
                         </div>
                         <div class="center">
-                            <div class="image-upload-container">
-                                <!-- Normal buttons for newer devices -->
-                                <div class="upload-buttons" id="uploadButtonsContainer">
-                                    <ons-button class="upload-btn camera-btn" onclick="openCamera()">
-                                        <ons-icon icon="md-camera" style="margin-right: 8px;"></ons-icon>
-                                        Take Photo
-                                    </ons-button>
-                                    <ons-button class="upload-btn gallery-btn" onclick="openGallery()">
-                                        <ons-icon icon="md-photo-library" style="margin-right: 8px;"></ons-icon>
-                                        Choose from Gallery
-                                    </ons-button>
-                                </div>
-
-                                <!-- Fallback unified button for problematic devices -->
-                                <div class="upload-buttons-fallback" id="uploadButtonsFallback" style="display: none;">
-                                    <ons-button class="upload-btn unified-btn" onclick="openCameraUnified()">
-                                        <ons-icon icon="md-photo-camera" style="margin-right: 8px;"></ons-icon>
-                                        📷 Add Photo
-                                    </ons-button>
-                                    <div class="help-text">This will open your device's photo picker</div>
-                                </div>
-
-                                <!-- Hidden file input -->
+                            <div class="simple-upload-container">
+                                <label for="bookCover" class="upload-label">
+                                    📷 Choose Book Cover Photo
+                                </label>
                                 <input
                                     type="file"
                                     id="bookCover"
                                     accept="image/*"
-                                    class="file-input"
-                                    style="display: none !important; visibility: hidden !important;">
-
+                                    class="simple-file-input">
+                                <div class="upload-help">
+                                    Tap above to take photo or choose from gallery
+                                </div>
                                 <div id="imagePreview" style="margin-top: 10px;"></div>
                             </div>
                         </div>

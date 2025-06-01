@@ -20,13 +20,6 @@ class BookJournal {
     }
 
     init() {
-        // Device detection
-        const deviceInfo = detectDeviceCapabilities();
-        if (deviceInfo.needsCompatibilityMode) {
-            console.log('Enabling compatibility mode for older device');
-            this.enableCompatibilityMode();
-        }
-
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 this.setupAuth();
@@ -36,19 +29,6 @@ class BookJournal {
             this.setupAuth();
             this.setupEventListeners();
         }
-    }
-
-    enableCompatibilityMode() {
-        // Switch to unified button approach for older devices
-        document.addEventListener('DOMContentLoaded', () => {
-            const normalButtons = document.getElementById('uploadButtonsContainer');
-            const fallbackButtons = document.getElementById('uploadButtonsFallback');
-
-            if (normalButtons && fallbackButtons) {
-                normalButtons.style.display = 'none';
-                fallbackButtons.style.display = 'block';
-            }
-        });
     }
 
     async setupAuth() {
@@ -150,37 +130,11 @@ class BookJournal {
             });
         }
 
-        // Setup file input listener properly
-        this.setupFileInputListener();
+        // Setup simple file input listener
+        setupFileInputListener();
 
         this.setupStatusChangeListeners();
         this.setupProgressListeners();
-        this.setupCameraPermissions();
-    }
-
-    setupFileInputListener() {
-        const bookCover = document.getElementById('bookCover');
-        if (bookCover) {
-            bookCover.addEventListener('change', (e) => {
-                console.log('File selected:', e.target.files[0]);
-                this.previewImage(e, 'imagePreview');
-            });
-        }
-    }
-
-    setupCameraPermissions() {
-        // Check camera permissions on page load
-        if (navigator.permissions && navigator.permissions.query) {
-            navigator.permissions.query({ name: 'camera' }).then(permission => {
-                console.log('Camera permission:', permission.state);
-
-                permission.addEventListener('change', () => {
-                    console.log('Camera permission changed to:', permission.state);
-                });
-            }).catch(error => {
-                console.log('Permission query not supported');
-            });
-        }
     }
 
     setupStatusChangeListeners() {
@@ -1573,390 +1527,45 @@ function hideProgressModal() {
     }
 }
 
-// Enhanced Camera Functions for Older Android Devices
-function openCamera() {
-    console.log('Opening camera (compatibility mode)...');
+// Simple file handling - no complex camera functions needed
+function setupFileInputListener() {
+    const bookCover = document.getElementById('bookCover');
+    if (bookCover) {
+        // Remove any existing listeners
+        bookCover.removeEventListener('change', handleFileSelect);
 
-    // Check if we're on mobile
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Add the listener
+        bookCover.addEventListener('change', handleFileSelect);
 
-    if (isMobile) {
-        // Try multiple methods for maximum compatibility
-        openCameraMethod1() || openCameraMethod2() || openCameraMethod3();
-    } else {
-        openCameraMethod1();
+        console.log('File input listener setup completed');
     }
 }
 
-function openGallery() {
-    console.log('Opening gallery (compatibility mode)...');
+function handleFileSelect(event) {
+    console.log('File selected:', event.target.files[0]);
 
-    // Check if we're on mobile
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    if (isMobile) {
-        // Try multiple methods for maximum compatibility
-        openGalleryMethod1() || openGalleryMethod2() || openGalleryMethod3();
-    } else {
-        openGalleryMethod1();
+    if (window.bookJournal && event.target.files[0]) {
+        window.bookJournal.previewImage(event, 'imagePreview');
     }
 }
 
-// Method 1: Standard approach (works on newer devices)
-function openCameraMethod1() {
-    try {
-        const fileInput = document.getElementById('bookCover');
-        if (!fileInput) return false;
-
-        // Reset and configure input
-        fileInput.value = '';
-        fileInput.setAttribute('accept', 'image/*');
-        fileInput.setAttribute('capture', 'environment');
-
-        // Create event listener
-        const handleChange = (e) => {
-            if (e.target.files && e.target.files[0]) {
-                if (window.bookJournal) {
-                    window.bookJournal.previewImage(e, 'imagePreview');
-                }
-            }
-            fileInput.removeEventListener('change', handleChange);
-        };
-
-        fileInput.addEventListener('change', handleChange);
-        fileInput.click();
-        return true;
-    } catch (error) {
-        console.log('Method 1 failed:', error);
-        return false;
-    }
-}
-
-// Method 2: Create new input element (for problematic devices)
-function openCameraMethod2() {
-    try {
-        console.log('Trying camera method 2...');
-
-        // Remove any existing temporary inputs
-        const existingInputs = document.querySelectorAll('.temp-camera-input');
-        existingInputs.forEach(input => input.remove());
-
-        // Create new input
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.capture = 'camera'; // Alternative capture value
-        input.className = 'temp-camera-input';
-        input.style.cssText = 'position:absolute;top:-1000px;left:-1000px;opacity:0;pointer-events:none;';
-
-        // Add to document
-        document.body.appendChild(input);
-
-        // Set up event listener
-        input.addEventListener('change', function(e) {
-            console.log('Camera method 2 - file selected:', e.target.files[0]);
-
-            if (e.target.files && e.target.files[0]) {
-                // Transfer file to main input
-                const mainInput = document.getElementById('bookCover');
-                if (mainInput) {
-                    const dt = new DataTransfer();
-                    dt.items.add(e.target.files[0]);
-                    mainInput.files = dt.files;
-
-                    // Trigger preview
-                    if (window.bookJournal) {
-                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
-                    }
-                }
-            }
-
-            // Clean up
-            setTimeout(() => {
-                if (input.parentNode) {
-                    input.parentNode.removeChild(input);
-                }
-            }, 100);
+// Update the setupEventListeners method to use the simple approach:
+// In the BookJournal class, update this method:
+setupEventListeners() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            this.searchBooks(e.target.value);
         });
-
-        // Trigger click after a small delay
-        setTimeout(() => {
-            input.click();
-        }, 100);
-
-        return true;
-    } catch (error) {
-        console.log('Method 2 failed:', error);
-        return false;
     }
-}
 
-// Method 3: Fallback with different capture attribute
-function openCameraMethod3() {
-    try {
-        console.log('Trying camera method 3 (fallback)...');
+    // Setup simple file input listener
+    setupFileInputListener();
 
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.capture = 'user'; // Try front camera as fallback
-        input.style.display = 'none';
+    this.setupStatusChangeListeners();
+    this.setupProgressListeners();
 
-        input.addEventListener('change', function(e) {
-            console.log('Camera method 3 - file selected:', e.target.files[0]);
-
-            if (e.target.files && e.target.files[0]) {
-                const mainInput = document.getElementById('bookCover');
-                if (mainInput) {
-                    const dt = new DataTransfer();
-                    dt.items.add(e.target.files[0]);
-                    mainInput.files = dt.files;
-
-                    if (window.bookJournal) {
-                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
-                    }
-                }
-            }
-
-            document.body.removeChild(input);
-        });
-
-        document.body.appendChild(input);
-        input.click();
-        return true;
-    } catch (error) {
-        console.log('Method 3 failed:', error);
-        return false;
-    }
-}
-
-// Gallery Methods
-function openGalleryMethod1() {
-    try {
-        const fileInput = document.getElementById('bookCover');
-        if (!fileInput) return false;
-
-        fileInput.value = '';
-        fileInput.setAttribute('accept', 'image/*');
-        fileInput.removeAttribute('capture'); // Important: remove capture for gallery
-
-        const handleChange = (e) => {
-            if (e.target.files && e.target.files[0]) {
-                if (window.bookJournal) {
-                    window.bookJournal.previewImage(e, 'imagePreview');
-                }
-            }
-            fileInput.removeEventListener('change', handleChange);
-        };
-
-        fileInput.addEventListener('change', handleChange);
-        fileInput.click();
-        return true;
-    } catch (error) {
-        console.log('Gallery method 1 failed:', error);
-        return false;
-    }
-}
-
-function openGalleryMethod2() {
-    try {
-        console.log('Trying gallery method 2...');
-
-        const existingInputs = document.querySelectorAll('.temp-gallery-input');
-        existingInputs.forEach(input => input.remove());
-
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        // No capture attribute for gallery
-        input.className = 'temp-gallery-input';
-        input.style.cssText = 'position:absolute;top:-1000px;left:-1000px;opacity:0;pointer-events:none;';
-
-        document.body.appendChild(input);
-
-        input.addEventListener('change', function(e) {
-            console.log('Gallery method 2 - file selected:', e.target.files[0]);
-
-            if (e.target.files && e.target.files[0]) {
-                const mainInput = document.getElementById('bookCover');
-                if (mainInput) {
-                    const dt = new DataTransfer();
-                    dt.items.add(e.target.files[0]);
-                    mainInput.files = dt.files;
-
-                    if (window.bookJournal) {
-                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
-                    }
-                }
-            }
-
-            setTimeout(() => {
-                if (input.parentNode) {
-                    input.parentNode.removeChild(input);
-                }
-            }, 100);
-        });
-
-        setTimeout(() => {
-            input.click();
-        }, 100);
-
-        return true;
-    } catch (error) {
-        console.log('Gallery method 2 failed:', error);
-        return false;
-    }
-}
-
-function openGalleryMethod3() {
-    try {
-        console.log('Trying gallery method 3 (fallback)...');
-
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*,image/jpeg,image/jpg,image/png,image/gif'; // More explicit accept
-        input.multiple = false;
-        input.style.display = 'none';
-
-        input.addEventListener('change', function(e) {
-            console.log('Gallery method 3 - file selected:', e.target.files[0]);
-
-            if (e.target.files && e.target.files[0]) {
-                const mainInput = document.getElementById('bookCover');
-                if (mainInput) {
-                    const dt = new DataTransfer();
-                    dt.items.add(e.target.files[0]);
-                    mainInput.files = dt.files;
-
-                    if (window.bookJournal) {
-                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
-                    }
-                }
-            }
-
-            document.body.removeChild(input);
-        });
-
-        document.body.appendChild(input);
-        input.click();
-        return true;
-    } catch (error) {
-        console.log('Gallery method 3 failed:', error);
-        return false;
-    }
-}
-
-// Unified method for older Android devices
-function openCameraUnified() {
-    console.log('Opening unified photo picker...');
-
-    try {
-        // Create a completely new input element
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*'; // This should show both camera and gallery options on mobile
-        input.style.display = 'none';
-        input.style.position = 'absolute';
-        input.style.left = '-9999px';
-
-        // Add change event listener
-        input.addEventListener('change', function(e) {
-            console.log('File selected from unified picker:', e.target.files[0]);
-
-            if (e.target.files && e.target.files[0]) {
-                const file = e.target.files[0];
-                console.log('File details:', {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size
-                });
-
-                // Get the main file input
-                const mainInput = document.getElementById('bookCover');
-                if (mainInput) {
-                    // Create a new DataTransfer object
-                    try {
-                        const dt = new DataTransfer();
-                        dt.items.add(file);
-                        mainInput.files = dt.files;
-                        console.log('File transferred to main input');
-                    } catch (error) {
-                        console.log('DataTransfer not supported, using alternative method');
-                        // Alternative method for older browsers
-                        Object.defineProperty(mainInput, 'files', {
-                            value: e.target.files,
-                            configurable: true
-                        });
-                    }
-
-                    // Trigger preview
-                    if (window.bookJournal && window.bookJournal.previewImage) {
-                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
-                        console.log('Preview triggered');
-                    } else {
-                        console.error('BookJournal or previewImage method not found');
-                    }
-                } else {
-                    console.error('Main input element not found');
-                }
-            } else {
-                console.log('No file selected');
-            }
-
-            // Clean up the temporary input
-            try {
-                if (input.parentNode) {
-                    input.parentNode.removeChild(input);
-                }
-            } catch (error) {
-                console.log('Error removing temporary input:', error);
-            }
-        });
-
-        // Add to DOM and trigger
-        document.body.appendChild(input);
-
-        // Add a small delay to ensure the input is in the DOM
-        setTimeout(() => {
-            console.log('Triggering file picker...');
-            input.click();
-        }, 50);
-
-    } catch (error) {
-        console.error('Error in openCameraUnified:', error);
-
-        // Fallback: try to use the main input directly
-        const mainInput = document.getElementById('bookCover');
-        if (mainInput) {
-            mainInput.accept = 'image/*';
-            mainInput.removeAttribute('capture');
-            mainInput.click();
-        }
-    }
-}
-
-// Add this function to detect device capabilities:
-
-function detectDeviceCapabilities() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isOldAndroid = /android [1-6]/.test(userAgent);
-    const isRealme = /realme|rmx|oppo/i.test(userAgent);
-    const isOldDevice = isOldAndroid || isRealme;
-
-    // Additional checks for problematic devices
-    const isLowEndDevice = /samsung sm-j|samsung sm-a1|samsung sm-g3|redmi|xiaomi/i.test(userAgent);
-
-    console.log('Device detection:', {
-        userAgent: userAgent,
-        isOldAndroid: isOldAndroid,
-        isRealme: isRealme,
-        isLowEndDevice: isLowEndDevice,
-        needsCompatibilityMode: isOldDevice || isLowEndDevice
-    });
-
-    return {
-        isOldDevice: isOldDevice,
-        needsCompatibilityMode: isOldDevice || isLowEndDevice
-    };
+    // Remove camera permissions setup - not needed anymore
+    // this.setupCameraPermissions();
 }
 
