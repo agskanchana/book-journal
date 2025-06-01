@@ -139,6 +139,22 @@ class BookJournal {
 
         this.setupStatusChangeListeners();
         this.setupProgressListeners();
+        this.setupCameraPermissions(); // Add this line
+    }
+
+    setupCameraPermissions() {
+        // Check camera permissions on page load
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions.query({ name: 'camera' }).then(permission => {
+                console.log('Camera permission:', permission.state);
+
+                permission.addEventListener('change', () => {
+                    console.log('Camera permission changed to:', permission.state);
+                });
+            }).catch(error => {
+                console.log('Permission query not supported');
+            });
+        }
     }
 
     setupStatusChangeListeners() {
@@ -1529,6 +1545,190 @@ function hideProgressModal() {
         if (window.bookJournal) {
             window.bookJournal.currentBookForUpdate = null;
         }
+    }
+}
+
+// Camera and Gallery Functions
+function openCamera() {
+    const fileInput = document.getElementById('bookCover');
+    if (fileInput) {
+        // Set capture attribute for camera
+        fileInput.setAttribute('capture', 'environment'); // Use back camera
+        fileInput.setAttribute('accept', 'image/*');
+        fileInput.click();
+    }
+}
+
+function openGallery() {
+    const fileInput = document.getElementById('bookCover');
+    if (fileInput) {
+        // Remove capture attribute for gallery
+        fileInput.removeAttribute('capture');
+        fileInput.setAttribute('accept', 'image/*');
+        fileInput.click();
+    }
+}
+
+// Enhanced camera functionality with Web API fallback
+async function openCameraAdvanced() {
+    // Check if device supports camera API
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+            // Try to use the camera API for better control
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment', // Use back camera
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+
+            // Show camera modal
+            showCameraModal(stream);
+        } catch (error) {
+            console.log('Camera API not available, falling back to file input');
+            openCamera(); // Fallback to file input
+        }
+    } else {
+        // Fallback to file input
+        openCamera();
+    }
+}
+
+function showCameraModal(stream) {
+    // Create camera modal dynamically
+    const cameraModal = document.createElement('ons-modal');
+    cameraModal.id = 'cameraModal';
+    cameraModal.innerHTML = `
+        <ons-page>
+            <ons-toolbar class="toolbar-primary">
+                <div class="left">
+                    <ons-toolbar-button onclick="closeCameraModal()">
+                        <ons-icon icon="md-close"></ons-icon>
+                    </ons-toolbar-button>
+                </div>
+                <div class="center">Take Photo</div>
+                <div class="right">
+                    <ons-toolbar-button onclick="capturePhoto()" class="capture-btn">
+                        <ons-icon icon="md-camera"></ons-icon>
+                    </ons-toolbar-button>
+                </div>
+            </ons-toolbar>
+
+            <div class="camera-container">
+                <video id="cameraVideo" autoplay playsinline></video>
+                <canvas id="cameraCanvas" style="display: none;"></canvas>
+
+                <div class="camera-controls">
+                    <button class="camera-control-btn" onclick="switchCamera()">
+                        <ons-icon icon="md-camera-front"></ons-icon>
+                        Flip
+                    </button>
+                    <button class="camera-control-btn capture-main" onclick="capturePhoto()">
+                        <ons-icon icon="md-camera"></ons-icon>
+                        Capture
+                    </button>
+                    <button class="camera-control-btn" onclick="closeCameraModal()">
+                        <ons-icon icon="md-close"></ons-icon>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </ons-page>
+    `;
+
+    document.body.appendChild(cameraModal);
+
+    // Setup video stream
+    const video = document.getElementById('cameraVideo');
+    video.srcObject = stream;
+
+    // Show modal
+    cameraModal.style.display = 'block';
+
+    // Store stream reference
+    window.currentCameraStream = stream;
+}
+
+function capturePhoto() {
+    const video = document.getElementById('cameraVideo');
+    const canvas = document.getElementById('cameraCanvas');
+    const context = canvas.getContext('2d');
+
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw video frame to canvas
+    context.drawImage(video, 0, 0);
+
+    // Convert canvas to blob
+    canvas.toBlob((blob) => {
+        // Create file from blob
+        const file = new File([blob], 'camera-photo.jpg', {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+        });
+
+        // Create file list and assign to input
+        const fileList = new DataTransfer();
+        fileList.items.add(file);
+
+        const fileInput = document.getElementById('bookCover');
+        if (fileInput) {
+            fileInput.files = fileList.files;
+
+            // Trigger preview
+            if (window.bookJournal) {
+                window.bookJournal.previewImage({ target: fileInput }, 'imagePreview');
+            }
+        }
+
+        closeCameraModal();
+    }, 'image/jpeg', 0.8);
+}
+
+function switchCamera() {
+    // Close current stream
+    if (window.currentCameraStream) {
+        window.currentCameraStream.getTracks().forEach(track => track.stop());
+    }
+
+    // Toggle between front and back camera
+    const currentFacing = window.currentFacingMode || 'environment';
+    const newFacing = currentFacing === 'environment' ? 'user' : 'environment';
+    window.currentFacingMode = newFacing;
+
+    // Restart camera with new facing mode
+    navigator.mediaDevices.getUserMedia({
+        video: {
+            facingMode: newFacing,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        }
+    }).then(stream => {
+        const video = document.getElementById('cameraVideo');
+        if (video) {
+            video.srcObject = stream;
+            window.currentCameraStream = stream;
+        }
+    }).catch(error => {
+        console.error('Error switching camera:', error);
+        ons.notification.toast('Unable to switch camera', { timeout: 3000 });
+    });
+}
+
+function closeCameraModal() {
+    // Stop camera stream
+    if (window.currentCameraStream) {
+        window.currentCameraStream.getTracks().forEach(track => track.stop());
+        window.currentCameraStream = null;
+    }
+
+    // Remove modal
+    const modal = document.getElementById('cameraModal');
+    if (modal) {
+        modal.remove();
     }
 }
 
