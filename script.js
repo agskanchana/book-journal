@@ -20,6 +20,13 @@ class BookJournal {
     }
 
     init() {
+        // Device detection
+        const deviceInfo = detectDeviceCapabilities();
+        if (deviceInfo.needsCompatibilityMode) {
+            console.log('Enabling compatibility mode for older device');
+            this.enableCompatibilityMode();
+        }
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 this.setupAuth();
@@ -29,6 +36,19 @@ class BookJournal {
             this.setupAuth();
             this.setupEventListeners();
         }
+    }
+
+    enableCompatibilityMode() {
+        // Switch to unified button approach for older devices
+        document.addEventListener('DOMContentLoaded', () => {
+            const normalButtons = document.getElementById('uploadButtonsContainer');
+            const fallbackButtons = document.getElementById('uploadButtonsFallback');
+
+            if (normalButtons && fallbackButtons) {
+                normalButtons.style.display = 'none';
+                fallbackButtons.style.display = 'block';
+            }
+        });
     }
 
     async setupAuth() {
@@ -1553,136 +1573,328 @@ function hideProgressModal() {
     }
 }
 
-// Camera and Gallery Functions
+// Enhanced Camera Functions for Older Android Devices
 function openCamera() {
-    console.log('Opening camera...');
+    console.log('Opening camera (compatibility mode)...');
 
-    const fileInput = document.getElementById('bookCover');
-    if (!fileInput) {
-        console.error('File input not found');
-        return;
+    // Check if we're on mobile
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+        // Try multiple methods for maximum compatibility
+        openCameraMethod1() || openCameraMethod2() || openCameraMethod3();
+    } else {
+        openCameraMethod1();
     }
-
-    // For mobile devices, use capture attribute
-    fileInput.setAttribute('capture', 'environment');
-    fileInput.setAttribute('accept', 'image/*');
-
-    // Create a new input to ensure fresh state
-    const newInput = fileInput.cloneNode(true);
-    fileInput.parentNode.replaceChild(newInput, fileInput);
-
-    // Re-attach event listener
-    newInput.addEventListener('change', (e) => {
-        if (window.bookJournal) {
-            window.bookJournal.previewImage(e, 'imagePreview');
-        }
-    });
-
-    // Trigger the camera
-    newInput.click();
 }
 
 function openGallery() {
-    console.log('Opening gallery...');
+    console.log('Opening gallery (compatibility mode)...');
 
-    const fileInput = document.getElementById('bookCover');
-    if (!fileInput) {
-        console.error('File input not found');
-        return;
+    // Check if we're on mobile
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+        // Try multiple methods for maximum compatibility
+        openGalleryMethod1() || openGalleryMethod2() || openGalleryMethod3();
+    } else {
+        openGalleryMethod1();
     }
-
-    // Remove capture attribute for gallery access
-    fileInput.removeAttribute('capture');
-    fileInput.setAttribute('accept', 'image/*');
-
-    // Create a new input to ensure fresh state
-    const newInput = fileInput.cloneNode(true);
-    fileInput.parentNode.replaceChild(newInput, fileInput);
-
-    // Re-attach event listener
-    newInput.addEventListener('change', (e) => {
-        if (window.bookJournal) {
-            window.bookJournal.previewImage(e, 'imagePreview');
-        }
-    });
-
-    // Trigger the gallery
-    newInput.click();
 }
 
-// Alternative camera function with better mobile support
-function openCameraAlternative() {
-    console.log('Opening camera (alternative method)...');
+// Method 1: Standard approach (works on newer devices)
+function openCameraMethod1() {
+    try {
+        const fileInput = document.getElementById('bookCover');
+        if (!fileInput) return false;
 
-    // Create a temporary file input
+        // Reset and configure input
+        fileInput.value = '';
+        fileInput.setAttribute('accept', 'image/*');
+        fileInput.setAttribute('capture', 'environment');
+
+        // Create event listener
+        const handleChange = (e) => {
+            if (e.target.files && e.target.files[0]) {
+                if (window.bookJournal) {
+                    window.bookJournal.previewImage(e, 'imagePreview');
+                }
+            }
+            fileInput.removeEventListener('change', handleChange);
+        };
+
+        fileInput.addEventListener('change', handleChange);
+        fileInput.click();
+        return true;
+    } catch (error) {
+        console.log('Method 1 failed:', error);
+        return false;
+    }
+}
+
+// Method 2: Create new input element (for problematic devices)
+function openCameraMethod2() {
+    try {
+        console.log('Trying camera method 2...');
+
+        // Remove any existing temporary inputs
+        const existingInputs = document.querySelectorAll('.temp-camera-input');
+        existingInputs.forEach(input => input.remove());
+
+        // Create new input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'camera'; // Alternative capture value
+        input.className = 'temp-camera-input';
+        input.style.cssText = 'position:absolute;top:-1000px;left:-1000px;opacity:0;pointer-events:none;';
+
+        // Add to document
+        document.body.appendChild(input);
+
+        // Set up event listener
+        input.addEventListener('change', function(e) {
+            console.log('Camera method 2 - file selected:', e.target.files[0]);
+
+            if (e.target.files && e.target.files[0]) {
+                // Transfer file to main input
+                const mainInput = document.getElementById('bookCover');
+                if (mainInput) {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.target.files[0]);
+                    mainInput.files = dt.files;
+
+                    // Trigger preview
+                    if (window.bookJournal) {
+                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                    }
+                }
+            }
+
+            // Clean up
+            setTimeout(() => {
+                if (input.parentNode) {
+                    input.parentNode.removeChild(input);
+                }
+            }, 100);
+        });
+
+        // Trigger click after a small delay
+        setTimeout(() => {
+            input.click();
+        }, 100);
+
+        return true;
+    } catch (error) {
+        console.log('Method 2 failed:', error);
+        return false;
+    }
+}
+
+// Method 3: Fallback with different capture attribute
+function openCameraMethod3() {
+    try {
+        console.log('Trying camera method 3 (fallback)...');
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'user'; // Try front camera as fallback
+        input.style.display = 'none';
+
+        input.addEventListener('change', function(e) {
+            console.log('Camera method 3 - file selected:', e.target.files[0]);
+
+            if (e.target.files && e.target.files[0]) {
+                const mainInput = document.getElementById('bookCover');
+                if (mainInput) {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.target.files[0]);
+                    mainInput.files = dt.files;
+
+                    if (window.bookJournal) {
+                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                    }
+                }
+            }
+
+            document.body.removeChild(input);
+        });
+
+        document.body.appendChild(input);
+        input.click();
+        return true;
+    } catch (error) {
+        console.log('Method 3 failed:', error);
+        return false;
+    }
+}
+
+// Gallery Methods
+function openGalleryMethod1() {
+    try {
+        const fileInput = document.getElementById('bookCover');
+        if (!fileInput) return false;
+
+        fileInput.value = '';
+        fileInput.setAttribute('accept', 'image/*');
+        fileInput.removeAttribute('capture'); // Important: remove capture for gallery
+
+        const handleChange = (e) => {
+            if (e.target.files && e.target.files[0]) {
+                if (window.bookJournal) {
+                    window.bookJournal.previewImage(e, 'imagePreview');
+                }
+            }
+            fileInput.removeEventListener('change', handleChange);
+        };
+
+        fileInput.addEventListener('change', handleChange);
+        fileInput.click();
+        return true;
+    } catch (error) {
+        console.log('Gallery method 1 failed:', error);
+        return false;
+    }
+}
+
+function openGalleryMethod2() {
+    try {
+        console.log('Trying gallery method 2...');
+
+        const existingInputs = document.querySelectorAll('.temp-gallery-input');
+        existingInputs.forEach(input => input.remove());
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        // No capture attribute for gallery
+        input.className = 'temp-gallery-input';
+        input.style.cssText = 'position:absolute;top:-1000px;left:-1000px;opacity:0;pointer-events:none;';
+
+        document.body.appendChild(input);
+
+        input.addEventListener('change', function(e) {
+            console.log('Gallery method 2 - file selected:', e.target.files[0]);
+
+            if (e.target.files && e.target.files[0]) {
+                const mainInput = document.getElementById('bookCover');
+                if (mainInput) {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.target.files[0]);
+                    mainInput.files = dt.files;
+
+                    if (window.bookJournal) {
+                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                    }
+                }
+            }
+
+            setTimeout(() => {
+                if (input.parentNode) {
+                    input.parentNode.removeChild(input);
+                }
+            }, 100);
+        });
+
+        setTimeout(() => {
+            input.click();
+        }, 100);
+
+        return true;
+    } catch (error) {
+        console.log('Gallery method 2 failed:', error);
+        return false;
+    }
+}
+
+function openGalleryMethod3() {
+    try {
+        console.log('Trying gallery method 3 (fallback)...');
+
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,image/jpeg,image/jpg,image/png,image/gif'; // More explicit accept
+        input.multiple = false;
+        input.style.display = 'none';
+
+        input.addEventListener('change', function(e) {
+            console.log('Gallery method 3 - file selected:', e.target.files[0]);
+
+            if (e.target.files && e.target.files[0]) {
+                const mainInput = document.getElementById('bookCover');
+                if (mainInput) {
+                    const dt = new DataTransfer();
+                    dt.items.add(e.target.files[0]);
+                    mainInput.files = dt.files;
+
+                    if (window.bookJournal) {
+                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                    }
+                }
+            }
+
+            document.body.removeChild(input);
+        });
+
+        document.body.appendChild(input);
+        input.click();
+        return true;
+    } catch (error) {
+        console.log('Gallery method 3 failed:', error);
+        return false;
+    }
+}
+
+// Unified method for older Android devices
+function openCameraUnified() {
+    console.log('Opening unified camera/gallery picker...');
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; // Use back camera
     input.style.display = 'none';
 
+    // On older Android, this will show both camera and gallery options
     input.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            // Set the file to the main input
+        if (e.target.files && e.target.files[0]) {
             const mainInput = document.getElementById('bookCover');
             if (mainInput) {
-                // Create a file list
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                mainInput.files = dataTransfer.files;
+                const dt = new DataTransfer();
+                dt.items.add(e.target.files[0]);
+                mainInput.files = dt.files;
 
-                // Trigger preview
                 if (window.bookJournal) {
                     window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
                 }
             }
         }
 
-        // Clean up
         document.body.removeChild(input);
     });
 
-    // Add to DOM and trigger
     document.body.appendChild(input);
     input.click();
 }
 
-// Gallery alternative
-function openGalleryAlternative() {
-    console.log('Opening gallery (alternative method)...');
+// Add this function to detect device capabilities:
 
-    // Create a temporary file input
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    // No capture attribute for gallery
-    input.style.display = 'none';
+function detectDeviceCapabilities() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isOldAndroid = /android [1-6]/.test(userAgent);
+    const isRealme = /realme/i.test(userAgent);
+    const isOldDevice = isOldAndroid || isRealme;
 
-    input.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            // Set the file to the main input
-            const mainInput = document.getElementById('bookCover');
-            if (mainInput) {
-                // Create a file list
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(file);
-                mainInput.files = dataTransfer.files;
-
-                // Trigger preview
-                if (window.bookJournal) {
-                    window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
-                }
-            }
-        }
-
-        // Clean up
-        document.body.removeChild(input);
+    console.log('Device detection:', {
+        userAgent: userAgent,
+        isOldAndroid: isOldAndroid,
+        isRealme: isRealme,
+        isOldDevice: isOldDevice
     });
 
-    // Add to DOM and trigger
-    document.body.appendChild(input);
-    input.click();
+    return {
+        isOldDevice: isOldDevice,
+        needsCompatibilityMode: isOldDevice
+    };
 }
 

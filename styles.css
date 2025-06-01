@@ -1084,3 +1084,41 @@ ons-modal[style*="block"] {
         -webkit-user-select: none !important;
     }
 }
+/* Add these styles for the unified button: */
+
+.unified-btn {
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%) !important;
+    color: white !important;
+    border: none !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+    touch-action: manipulation !important;
+    width: 100% !important;
+}
+
+.unified-btn:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.4) !important;
+}
+
+/* Device-specific adjustments */
+.upload-buttons-fallback {
+    width: 100%;
+}
+
+/* Better touch targets for older devices */
+@media (max-device-width: 768px) {
+    .upload-btn {
+        min-height: 48px !important; /* Larger touch target */
+        font-size: 1rem !important;
+        padding: 14px 16px !important;
+    }
+}
