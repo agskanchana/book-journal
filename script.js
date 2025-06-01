@@ -940,24 +940,37 @@ class BookJournal {
     // Add this helper method for the actual deletion:
     async performDelete(id) {
         try {
-            const { error } = await supabase
+            // First, delete all user reading progress for this book
+            const { error: progressError } = await supabase
+                .from('user_reading_progress')
+                .delete()
+                .eq('book_id', id);
+
+            if (progressError) {
+                console.error('Error deleting progress records:', progressError);
+                // Continue anyway, might not have progress records
+            }
+
+            // Then delete the book itself
+            const { error: bookError } = await supabase
                 .from('shared_books')
                 .delete()
                 .eq('id', id)
                 .eq('created_by', this.currentUser.id);
 
-            if (error) throw error;
+            if (bookError) throw bookError;
 
             ons.notification.alert({
                 message: '✅ Book deleted successfully!',
                 title: 'Deleted',
                 buttonLabel: 'OK'
             });
+
             this.loadBooks();
         } catch (error) {
             console.error('Error deleting book:', error);
             ons.notification.alert({
-                message: '❌ Error deleting book. Please try again.',
+                message: `❌ Error deleting book: ${error.message}`,
                 title: 'Delete Failed',
                 buttonLabel: 'OK'
             });
