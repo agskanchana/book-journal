@@ -2062,4 +2062,3 @@ function hideProgressModal() {
     }
 }
 
-alert('dfdfdfdf');
