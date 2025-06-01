@@ -168,6 +168,66 @@ class BookJournal {
 
         this.setupStatusChangeListeners();
         this.setupProgressListeners();
+
+        // Add event delegation for book action buttons
+        this.setupBookActionListeners();
+
+        // Add save button listener as backup
+        const addBookSaveBtn = document.getElementById('addBookSaveBtn');
+        if (addBookSaveBtn) {
+            addBookSaveBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.addBook();
+            });
+        }
+    }
+
+    setupBookActionListeners() {
+        // Event delegation for currently reading books
+        const currentlyReadingContainer = document.getElementById('currentlyReadingBooks');
+        if (currentlyReadingContainer) {
+            currentlyReadingContainer.addEventListener('click', (e) => {
+                this.handleBookAction(e);
+            });
+        }
+
+        // Event delegation for all books
+        const allBooksContainer = document.getElementById('allBooks');
+        if (allBooksContainer) {
+            allBooksContainer.addEventListener('click', (e) => {
+                this.handleBookAction(e);
+            });
+        }
+    }
+
+    handleBookAction(e) {
+        const button = e.target.closest('.action-btn');
+        if (!button) return;
+
+        const action = button.getAttribute('data-action');
+        const bookId = parseInt(button.getAttribute('data-book-id'));
+
+        if (!action || !bookId) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        switch (action) {
+            case 'edit':
+                this.editBookProgress(bookId);
+                break;
+            case 'delete':
+                this.deleteBook(bookId);
+                break;
+            case 'start-tracking':
+                this.startTrackingBook(bookId);
+                break;
+            case 'progress':
+                this.openProgressModal(bookId);
+                break;
+            default:
+                console.warn('Unknown action:', action);
+        }
     }
 
     setupPaginationListeners() {
@@ -191,6 +251,25 @@ class BookJournal {
         if (bottomNextBtn) {
             bottomNextBtn.addEventListener('click', () => this.goToNextPage());
         }
+
+        // Add event listeners for page number clicks
+        const pageContainers = [
+            document.getElementById('pageNumbers'),
+            document.getElementById('bottomPageNumbers')
+        ];
+
+        pageContainers.forEach(container => {
+            if (container) {
+                container.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('page-number')) {
+                        const page = parseInt(e.target.getAttribute('data-page'));
+                        if (page) {
+                            this.goToPage(page);
+                        }
+                    }
+                });
+            }
+        });
     }
 
     handleSearchAndFilter() {
@@ -292,7 +371,7 @@ class BookJournal {
 
         // Add first page and ellipsis if needed
         if (startPage > 1) {
-            html += `<span class="page-number" onclick="window.bookJournal.goToPage(1)">1</span>`;
+            html += `<span class="page-number" data-page="1">1</span>`;
             if (startPage > 2) {
                 html += '<span class="page-ellipsis">...</span>';
             }
@@ -303,7 +382,7 @@ class BookJournal {
             if (i === this.currentPage) {
                 html += `<span class="page-current">${i}</span>`;
             } else {
-                html += `<span class="page-number" onclick="window.bookJournal.goToPage(${i})">${i}</span>`;
+                html += `<span class="page-number" data-page="${i}">${i}</span>`;
             }
         }
 
@@ -312,7 +391,7 @@ class BookJournal {
             if (endPage < totalPages - 1) {
                 html += '<span class="page-ellipsis">...</span>';
             }
-            html += `<span class="page-number" onclick="window.bookJournal.goToPage(${totalPages})">${totalPages}</span>`;
+            html += `<span class="page-number" data-page="${totalPages}">${totalPages}</span>`;
         }
 
         return html;
@@ -898,72 +977,72 @@ class BookJournal {
             ? `<div class="progress-info"><small>Page ${book.current_page}</small></div>`
             : '';
 
-        // Show both book summary and personal notes
-        const notes = book.summary || book.personal_notes
-            ? `<div class="book-summary">
+    // Show both book summary and personal notes
+    const notes = book.summary || book.personal_notes
+        ? `<div class="book-summary">
             ${book.summary ? `<div><strong>About:</strong> ${book.summary}</div>` : ''}
             ${book.personal_notes ? `<div><strong>My Notes:</strong> ${book.personal_notes}</div>` : ''}
            </div>`
-            : '';
+        : '';
 
-        // Show who added the book with actual name
-        const addedBy = book.created_by !== this.currentUser.id
-            ? `<div class="book-meta">
+    // Show who added the book with actual name
+    const addedBy = book.created_by !== this.currentUser.id
+        ? `<div class="book-meta">
              <small>👤 Added by ${book.creator_name}</small>
            </div>`
-            : `<div class="book-meta">
+        : `<div class="book-meta">
              <small>✨ Added by you</small>
            </div>`;
 
-        // Show different buttons based on whether user has started tracking or owns the book
-        const actionButtons = book.created_by === this.currentUser.id
-    ? `<button class="action-btn btn-edit" onclick="window.bookJournal.editBookProgress(${book.id})">
+    // Show different buttons based on whether user has started tracking or owns the book
+    const actionButtons = book.created_by === this.currentUser.id
+    ? `<button class="action-btn btn-edit" data-action="edit" data-book-id="${book.id}">
            ✏️ Edit
        </button>
-       <button class="action-btn btn-delete" onclick="window.bookJournal.deleteBook(${book.id})">
+       <button class="action-btn btn-delete" data-action="delete" data-book-id="${book.id}">
            🗑️ Delete
        </button>`
     : book.hasProgress
-    ? `<button class="action-btn btn-edit" onclick="window.bookJournal.editBookProgress(${book.id})">
+    ? `<button class="action-btn btn-edit" data-action="edit" data-book-id="${book.id}">
            ✏️ Edit
        </button>`
-    : `<button class="action-btn btn-start" onclick="window.bookJournal.startTrackingBook(${book.id})">
+    : `<button class="action-btn btn-start" data-action="start-tracking" data-book-id="${book.id}">
            📖 Start Reading
        </button>`;
 
-        return `
-            <div class="book-card">
-                <div class="book-card-content">
-                    <div class="book-cover">
-                        ${coverImage}
-                    </div>
-                    <div class="book-info">
-                        <h3 class="book-title">${book.name}</h3>
-                        <p class="book-author">by ${book.author}</p>
-
-                        ${book.category || book.purchase_date ? `<div class="book-meta">
-                            ${book.category ? `<span class="meta-tag">${book.category}</span>` : ''}
-                            ${book.purchase_date ? `<small>📅 ${new Date(book.purchase_date).toLocaleDateString()}</small>` : ''}
-                        </div>` : ''}
-
-                        ${addedBy}
-                        ${progressInfo}
-                        ${notes}
-                    </div>
+    return `
+        <div class="book-card">
+            <div class="book-card-content">
+                <div class="book-cover">
+                    ${coverImage}
                 </div>
-                <div class="book-actions">
-                    <div class="status-badge status-${book.status.toLowerCase().replace(' ', '-')}">
-                        ${book.status}
-                    </div>
-                    ${book.status === 'Reading' ? `
-                    <button class="action-btn btn-progress" onclick="window.bookJournal.openProgressModal(${book.id})">
-                        📊 Progress
-                    </button>
-                ` : ''}
-                    ${actionButtons}
+                <div class="book-info">
+                    <h3 class="book-title">${book.name}</h3>
+                    <p class="book-author">by ${book.author}</p>
+
+                    ${book.category || book.purchase_date ? `<div class="book-meta">
+                        ${book.category ? `<span class="meta-tag">${book.category}</span>` : ''}
+                        ${book.purchase_date ? `<small>📅 ${new Date(book.purchase_date).toLocaleDateString()}</small>` : ''}
+                    </div>` : ''}
+
+                    ${addedBy}
+                    ${progressInfo}
+                    ${notes}
                 </div>
             </div>
-        `;
+            <div class="book-actions">
+                <div class="status-badge status-${book.status.toLowerCase().replace(' ', '-')}">
+                    ${book.status}
+                </div>
+                ${book.status === 'Reading' ? `
+                <button class="action-btn btn-progress" data-action="progress" data-book-id="${book.id}">
+                    📊 Progress
+                </button>
+            ` : ''}
+                ${actionButtons}
+            </div>
+        </div>
+    `;
     }
 
     searchBooks(query) {
@@ -1850,8 +1929,31 @@ function updateBookProgress() {
 
 // Initialize the app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing BookJournal...');
     window.bookJournal = new BookJournal();
+
+    // Add a small delay to ensure everything is ready
+    setTimeout(() => {
+        console.log('BookJournal initialized:', window.bookJournal);
+    }, 100);
 });
+
+// Backup initialization for cases where DOMContentLoaded already fired
+if (document.readyState === 'loading') {
+    // DOM is still loading
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!window.bookJournal) {
+            console.log('Backup: DOM loaded, initializing BookJournal...');
+            window.bookJournal = new BookJournal();
+        }
+    });
+} else {
+    // DOM already loaded
+    if (!window.bookJournal) {
+        console.log('DOM already loaded, initializing BookJournal immediately...');
+        window.bookJournal = new BookJournal();
+    }
+}
 
 function showEditBookModal() {
     const modal = document.getElementById('editBookModal');
