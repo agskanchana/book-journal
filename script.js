@@ -130,16 +130,22 @@ class BookJournal {
             });
         }
 
-        const bookCover = document.getElementById('bookCover');
-        if (bookCover) {
-            bookCover.addEventListener('change', (e) => {
-                this.previewImage(e, 'imagePreview');
-            });
-        }
+        // Setup file input listener properly
+        this.setupFileInputListener();
 
         this.setupStatusChangeListeners();
         this.setupProgressListeners();
-        this.setupCameraPermissions(); // Add this line
+        this.setupCameraPermissions();
+    }
+
+    setupFileInputListener() {
+        const bookCover = document.getElementById('bookCover');
+        if (bookCover) {
+            bookCover.addEventListener('change', (e) => {
+                console.log('File selected:', e.target.files[0]);
+                this.previewImage(e, 'imagePreview');
+            });
+        }
     }
 
     setupCameraPermissions() {
@@ -1549,185 +1555,134 @@ function hideProgressModal() {
 
 // Camera and Gallery Functions
 function openCamera() {
+    console.log('Opening camera...');
+
     const fileInput = document.getElementById('bookCover');
-    if (fileInput) {
-        // Set capture attribute for camera
-        fileInput.setAttribute('capture', 'environment'); // Use back camera
-        fileInput.setAttribute('accept', 'image/*');
-        fileInput.click();
+    if (!fileInput) {
+        console.error('File input not found');
+        return;
     }
+
+    // For mobile devices, use capture attribute
+    fileInput.setAttribute('capture', 'environment');
+    fileInput.setAttribute('accept', 'image/*');
+
+    // Create a new input to ensure fresh state
+    const newInput = fileInput.cloneNode(true);
+    fileInput.parentNode.replaceChild(newInput, fileInput);
+
+    // Re-attach event listener
+    newInput.addEventListener('change', (e) => {
+        if (window.bookJournal) {
+            window.bookJournal.previewImage(e, 'imagePreview');
+        }
+    });
+
+    // Trigger the camera
+    newInput.click();
 }
 
 function openGallery() {
+    console.log('Opening gallery...');
+
     const fileInput = document.getElementById('bookCover');
-    if (fileInput) {
-        // Remove capture attribute for gallery
-        fileInput.removeAttribute('capture');
-        fileInput.setAttribute('accept', 'image/*');
-        fileInput.click();
+    if (!fileInput) {
+        console.error('File input not found');
+        return;
     }
-}
 
-// Enhanced camera functionality with Web API fallback
-async function openCameraAdvanced() {
-    // Check if device supports camera API
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-            // Try to use the camera API for better control
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment', // Use back camera
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
+    // Remove capture attribute for gallery access
+    fileInput.removeAttribute('capture');
+    fileInput.setAttribute('accept', 'image/*');
 
-            // Show camera modal
-            showCameraModal(stream);
-        } catch (error) {
-            console.log('Camera API not available, falling back to file input');
-            openCamera(); // Fallback to file input
+    // Create a new input to ensure fresh state
+    const newInput = fileInput.cloneNode(true);
+    fileInput.parentNode.replaceChild(newInput, fileInput);
+
+    // Re-attach event listener
+    newInput.addEventListener('change', (e) => {
+        if (window.bookJournal) {
+            window.bookJournal.previewImage(e, 'imagePreview');
         }
-    } else {
-        // Fallback to file input
-        openCamera();
-    }
+    });
+
+    // Trigger the gallery
+    newInput.click();
 }
 
-function showCameraModal(stream) {
-    // Create camera modal dynamically
-    const cameraModal = document.createElement('ons-modal');
-    cameraModal.id = 'cameraModal';
-    cameraModal.innerHTML = `
-        <ons-page>
-            <ons-toolbar class="toolbar-primary">
-                <div class="left">
-                    <ons-toolbar-button onclick="closeCameraModal()">
-                        <ons-icon icon="md-close"></ons-icon>
-                    </ons-toolbar-button>
-                </div>
-                <div class="center">Take Photo</div>
-                <div class="right">
-                    <ons-toolbar-button onclick="capturePhoto()" class="capture-btn">
-                        <ons-icon icon="md-camera"></ons-icon>
-                    </ons-toolbar-button>
-                </div>
-            </ons-toolbar>
+// Alternative camera function with better mobile support
+function openCameraAlternative() {
+    console.log('Opening camera (alternative method)...');
 
-            <div class="camera-container">
-                <video id="cameraVideo" autoplay playsinline></video>
-                <canvas id="cameraCanvas" style="display: none;"></canvas>
+    // Create a temporary file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // Use back camera
+    input.style.display = 'none';
 
-                <div class="camera-controls">
-                    <button class="camera-control-btn" onclick="switchCamera()">
-                        <ons-icon icon="md-camera-front"></ons-icon>
-                        Flip
-                    </button>
-                    <button class="camera-control-btn capture-main" onclick="capturePhoto()">
-                        <ons-icon icon="md-camera"></ons-icon>
-                        Capture
-                    </button>
-                    <button class="camera-control-btn" onclick="closeCameraModal()">
-                        <ons-icon icon="md-close"></ons-icon>
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        </ons-page>
-    `;
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Set the file to the main input
+            const mainInput = document.getElementById('bookCover');
+            if (mainInput) {
+                // Create a file list
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                mainInput.files = dataTransfer.files;
 
-    document.body.appendChild(cameraModal);
-
-    // Setup video stream
-    const video = document.getElementById('cameraVideo');
-    video.srcObject = stream;
-
-    // Show modal
-    cameraModal.style.display = 'block';
-
-    // Store stream reference
-    window.currentCameraStream = stream;
-}
-
-function capturePhoto() {
-    const video = document.getElementById('cameraVideo');
-    const canvas = document.getElementById('cameraCanvas');
-    const context = canvas.getContext('2d');
-
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0);
-
-    // Convert canvas to blob
-    canvas.toBlob((blob) => {
-        // Create file from blob
-        const file = new File([blob], 'camera-photo.jpg', {
-            type: 'image/jpeg',
-            lastModified: Date.now()
-        });
-
-        // Create file list and assign to input
-        const fileList = new DataTransfer();
-        fileList.items.add(file);
-
-        const fileInput = document.getElementById('bookCover');
-        if (fileInput) {
-            fileInput.files = fileList.files;
-
-            // Trigger preview
-            if (window.bookJournal) {
-                window.bookJournal.previewImage({ target: fileInput }, 'imagePreview');
+                // Trigger preview
+                if (window.bookJournal) {
+                    window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                }
             }
         }
 
-        closeCameraModal();
-    }, 'image/jpeg', 0.8);
-}
-
-function switchCamera() {
-    // Close current stream
-    if (window.currentCameraStream) {
-        window.currentCameraStream.getTracks().forEach(track => track.stop());
-    }
-
-    // Toggle between front and back camera
-    const currentFacing = window.currentFacingMode || 'environment';
-    const newFacing = currentFacing === 'environment' ? 'user' : 'environment';
-    window.currentFacingMode = newFacing;
-
-    // Restart camera with new facing mode
-    navigator.mediaDevices.getUserMedia({
-        video: {
-            facingMode: newFacing,
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        }
-    }).then(stream => {
-        const video = document.getElementById('cameraVideo');
-        if (video) {
-            video.srcObject = stream;
-            window.currentCameraStream = stream;
-        }
-    }).catch(error => {
-        console.error('Error switching camera:', error);
-        ons.notification.toast('Unable to switch camera', { timeout: 3000 });
+        // Clean up
+        document.body.removeChild(input);
     });
+
+    // Add to DOM and trigger
+    document.body.appendChild(input);
+    input.click();
 }
 
-function closeCameraModal() {
-    // Stop camera stream
-    if (window.currentCameraStream) {
-        window.currentCameraStream.getTracks().forEach(track => track.stop());
-        window.currentCameraStream = null;
-    }
+// Gallery alternative
+function openGalleryAlternative() {
+    console.log('Opening gallery (alternative method)...');
 
-    // Remove modal
-    const modal = document.getElementById('cameraModal');
-    if (modal) {
-        modal.remove();
-    }
+    // Create a temporary file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    // No capture attribute for gallery
+    input.style.display = 'none';
+
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Set the file to the main input
+            const mainInput = document.getElementById('bookCover');
+            if (mainInput) {
+                // Create a file list
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                mainInput.files = dataTransfer.files;
+
+                // Trigger preview
+                if (window.bookJournal) {
+                    window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                }
+            }
+        }
+
+        // Clean up
+        document.body.removeChild(input);
+    });
+
+    // Add to DOM and trigger
+    document.body.appendChild(input);
+    input.click();
 }
 

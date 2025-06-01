@@ -1005,3 +1005,82 @@ ons-modal[style*="block"] {
         margin-bottom: 8px;
     }
 }
+
+/* Update the upload button styles: */
+
+/* Image Upload Container */
+.image-upload-container {
+    width: 100%;
+}
+
+.upload-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.upload-btn {
+    flex: 1;
+    padding: 12px 16px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 44px !important; /* iOS minimum touch target */
+    touch-action: manipulation !important; /* Prevent zoom on double-tap */
+}
+
+.camera-btn {
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%) !important;
+    color: white !important;
+}
+
+.camera-btn:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.4) !important;
+}
+
+.gallery-btn {
+    background: linear-gradient(135deg, #ea4335 0%, #fbbc04 100%) !important;
+    color: white !important;
+}
+
+.gallery-btn:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 2px 8px rgba(234, 67, 53, 0.4) !important;
+}
+
+/* Ensure file input is properly hidden */
+.file-input {
+    display: none !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 480px) {
+    .upload-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .upload-btn {
+        width: 100% !important;
+        margin-bottom: 8px !important;
+    }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+    .upload-btn {
+        -webkit-appearance: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+    }
+}

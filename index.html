@@ -378,20 +378,19 @@
                         <div class="center">
                             <div class="image-upload-container">
                                 <div class="upload-buttons">
-                                    <button type="button" class="upload-btn camera-btn" onclick="openCamera()">
+                                    <ons-button class="upload-btn camera-btn" onclick="openCamera()">
                                         <ons-icon icon="md-camera" style="margin-right: 8px;"></ons-icon>
                                         Take Photo
-                                    </button>
-                                    <button type="button" class="upload-btn gallery-btn" onclick="openGallery()">
+                                    </ons-button>
+                                    <ons-button class="upload-btn gallery-btn" onclick="openGallery()">
                                         <ons-icon icon="md-photo-library" style="margin-right: 8px;"></ons-icon>
                                         Choose from Gallery
-                                    </button>
+                                    </ons-button>
                                 </div>
                                 <input
                                     type="file"
                                     id="bookCover"
                                     accept="image/*"
-                                    capture="environment"
                                     class="file-input"
                                     style="display: none;">
                                 <div id="imagePreview" style="margin-top: 10px;"></div>
