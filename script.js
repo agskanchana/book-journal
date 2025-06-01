@@ -35,19 +35,31 @@ class BookJournal {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
-            this.currentUser = session.user;
-            this.showMainApp();
-            this.loadBooks();
+            // Check if user email is allowed
+            if (this.isEmailAllowed(session.user.email)) {
+                this.currentUser = session.user;
+                this.showMainApp();
+                this.loadBooks();
+            } else {
+                // Sign out unauthorized user
+                await this.signOutUnauthorized(session.user.email);
+            }
         } else {
             this.showLoginPage();
         }
 
         supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
-                this.currentUser = session.user;
-                await this.createUserProfile(session.user);
-                this.showMainApp();
-                this.loadBooks();
+                // Check if user email is allowed
+                if (this.isEmailAllowed(session.user.email)) {
+                    this.currentUser = session.user;
+                    await this.createUserProfile(session.user);
+                    this.showMainApp();
+                    this.loadBooks();
+                } else {
+                    // Sign out unauthorized user
+                    await this.signOutUnauthorized(session.user.email);
+                }
             } else if (event === 'SIGNED_OUT') {
                 this.currentUser = null;
                 this.books = [];
@@ -1382,11 +1394,61 @@ class BookJournal {
             return false;
         }
     }
+
+    // List of allowed emails
+    getAllowedEmails() {
+        return [
+            'sanda.wijekoon7@gmail.com',
+            'agskanchana@gmail.com'
+        ];
+    }
+
+    // Check if email is in allowed list
+    isEmailAllowed(email) {
+        if (!email) return false;
+
+        const allowedEmails = this.getAllowedEmails();
+        const normalizedEmail = email.toLowerCase().trim();
+
+        return allowedEmails.some(allowedEmail =>
+            allowedEmail.toLowerCase().trim() === normalizedEmail
+        );
+    }
+
+    // Handle unauthorized user sign-in
+    async signOutUnauthorized(email) {
+        console.log('Unauthorized email attempted login:', email);
+
+        try {
+            // Sign out the user
+            await supabase.auth.signOut();
+
+            // Show access denied message
+            ons.notification.alert({
+                message: `🚫 Access Denied\n\nSorry, ${email} is not authorized to access this Book Journal.\n\nThis is a private reading tracker limited to specific users only.`,
+                title: 'Unauthorized Access',
+                buttonLabel: 'OK'
+            });
+
+            // Make sure we show the login page
+            this.showLoginPage();
+
+        } catch (error) {
+            console.error('Error signing out unauthorized user:', error);
+        }
+    }
 }
 
 // Authentication Functions
 async function signInWithGoogle() {
     try {
+        // Show loading state
+        const loginButton = document.querySelector('.google-login-btn');
+        if (loginButton) {
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<ons-icon icon="fa-spinner" class="fa-spin" style="margin-right: 8px;"></ons-icon>Signing in...';
+        }
+
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -1395,9 +1457,25 @@ async function signInWithGoogle() {
         });
 
         if (error) throw error;
+
+        // Note: The actual email validation happens in setupAuth()
+        // when the auth state changes after successful OAuth
+
     } catch (error) {
         console.error('Error signing in:', error);
-        alert('Error signing in. Please try again.');
+
+        // Reset button state
+        const loginButton = document.querySelector('.google-login-btn');
+        if (loginButton) {
+            loginButton.disabled = false;
+            loginButton.innerHTML = '<ons-icon icon="fa-google" style="margin-right: 8px;"></ons-icon>Continue with Google';
+        }
+
+        ons.notification.alert({
+            message: '❌ Error signing in with Google. Please try again.',
+            title: 'Sign-in Error',
+            buttonLabel: 'OK'
+        });
     }
 }
 
