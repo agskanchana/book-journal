@@ -1122,3 +1122,43 @@ ons-modal[style*="block"] {
         padding: 14px 16px !important;
     }
 }
+
+/* Add this after the unified-btn styles: */
+
+.help-text {
+    font-size: 0.8rem;
+    color: #666;
+    text-align: center;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* Make unified button more prominent */
+.unified-btn {
+    background: linear-gradient(135deg, #4285f4 0%, #34a853 100%) !important;
+    color: white !important;
+    border: none !important;
+    padding: 16px 20px !important; /* Larger padding */
+    border-radius: 12px !important; /* More rounded */
+    font-size: 1rem !important; /* Larger text */
+    font-weight: 600 !important; /* Bolder text */
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 50px !important; /* Taller button */
+    touch-action: manipulation !important;
+    width: 100% !important;
+    box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3) !important;
+}
+
+.unified-btn:active {
+    transform: translateY(2px) !important;
+    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.4) !important;
+}
+
+.upload-buttons-fallback {
+    width: 100%;
+    text-align: center;
+}

@@ -1848,33 +1848,91 @@ function openGalleryMethod3() {
 
 // Unified method for older Android devices
 function openCameraUnified() {
-    console.log('Opening unified camera/gallery picker...');
+    console.log('Opening unified photo picker...');
 
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.style.display = 'none';
+    try {
+        // Create a completely new input element
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*'; // This should show both camera and gallery options on mobile
+        input.style.display = 'none';
+        input.style.position = 'absolute';
+        input.style.left = '-9999px';
 
-    // On older Android, this will show both camera and gallery options
-    input.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files[0]) {
-            const mainInput = document.getElementById('bookCover');
-            if (mainInput) {
-                const dt = new DataTransfer();
-                dt.items.add(e.target.files[0]);
-                mainInput.files = dt.files;
+        // Add change event listener
+        input.addEventListener('change', function(e) {
+            console.log('File selected from unified picker:', e.target.files[0]);
 
-                if (window.bookJournal) {
-                    window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                console.log('File details:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                });
+
+                // Get the main file input
+                const mainInput = document.getElementById('bookCover');
+                if (mainInput) {
+                    // Create a new DataTransfer object
+                    try {
+                        const dt = new DataTransfer();
+                        dt.items.add(file);
+                        mainInput.files = dt.files;
+                        console.log('File transferred to main input');
+                    } catch (error) {
+                        console.log('DataTransfer not supported, using alternative method');
+                        // Alternative method for older browsers
+                        Object.defineProperty(mainInput, 'files', {
+                            value: e.target.files,
+                            configurable: true
+                        });
+                    }
+
+                    // Trigger preview
+                    if (window.bookJournal && window.bookJournal.previewImage) {
+                        window.bookJournal.previewImage({ target: mainInput }, 'imagePreview');
+                        console.log('Preview triggered');
+                    } else {
+                        console.error('BookJournal or previewImage method not found');
+                    }
+                } else {
+                    console.error('Main input element not found');
                 }
+            } else {
+                console.log('No file selected');
             }
+
+            // Clean up the temporary input
+            try {
+                if (input.parentNode) {
+                    input.parentNode.removeChild(input);
+                }
+            } catch (error) {
+                console.log('Error removing temporary input:', error);
+            }
+        });
+
+        // Add to DOM and trigger
+        document.body.appendChild(input);
+
+        // Add a small delay to ensure the input is in the DOM
+        setTimeout(() => {
+            console.log('Triggering file picker...');
+            input.click();
+        }, 50);
+
+    } catch (error) {
+        console.error('Error in openCameraUnified:', error);
+
+        // Fallback: try to use the main input directly
+        const mainInput = document.getElementById('bookCover');
+        if (mainInput) {
+            mainInput.accept = 'image/*';
+            mainInput.removeAttribute('capture');
+            mainInput.click();
         }
-
-        document.body.removeChild(input);
-    });
-
-    document.body.appendChild(input);
-    input.click();
+    }
 }
 
 // Add this function to detect device capabilities:
@@ -1882,19 +1940,23 @@ function openCameraUnified() {
 function detectDeviceCapabilities() {
     const userAgent = navigator.userAgent.toLowerCase();
     const isOldAndroid = /android [1-6]/.test(userAgent);
-    const isRealme = /realme/i.test(userAgent);
+    const isRealme = /realme|rmx|oppo/i.test(userAgent);
     const isOldDevice = isOldAndroid || isRealme;
+
+    // Additional checks for problematic devices
+    const isLowEndDevice = /samsung sm-j|samsung sm-a1|samsung sm-g3|redmi|xiaomi/i.test(userAgent);
 
     console.log('Device detection:', {
         userAgent: userAgent,
         isOldAndroid: isOldAndroid,
         isRealme: isRealme,
-        isOldDevice: isOldDevice
+        isLowEndDevice: isLowEndDevice,
+        needsCompatibilityMode: isOldDevice || isLowEndDevice
     });
 
     return {
         isOldDevice: isOldDevice,
-        needsCompatibilityMode: isOldDevice
+        needsCompatibilityMode: isOldDevice || isLowEndDevice
     };
 }
 
