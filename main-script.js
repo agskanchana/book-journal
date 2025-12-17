@@ -7,8 +7,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const CLOUDINARY_CLOUD_NAME = 'dt7i4uwts';
 const CLOUDINARY_UPLOAD_PRESET = 'book-journal';
 
-// Initialize Supabase
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Supabase (only if not already initialized)
+// Use var instead of const to allow redeclaration if script loads multiple times
+if (!window.supabaseClient && typeof window.supabase !== 'undefined') {
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+var supabase = window.supabaseClient;
+
+// Validate that supabase client is initialized
+if (!supabase) {
+    console.error('❌ Supabase client failed to initialize. Please check that the Supabase library is loaded.');
+}
 
 class BookJournal {
     constructor() {
