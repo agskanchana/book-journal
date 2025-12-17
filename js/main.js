@@ -27,6 +27,13 @@ class BookJournal {
     }
 
     async setupAuth() {
+        // Check if Supabase client is available
+        if (!window.BookJournalConfig || !window.BookJournalConfig.supabase) {
+            console.error('Cannot setup auth: Supabase client not available');
+            this.uiService.showNotification('❌ Unable to connect to the server. Please refresh the page.', 'error');
+            return;
+        }
+        
         const { data: { session } } = await window.BookJournalConfig.supabase.auth.getSession();
 
         if (session) {

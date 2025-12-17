@@ -22,7 +22,17 @@
     
     // Check if Supabase library is loaded
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
-        console.error('Supabase library not loaded! Please check your internet connection.');
+        console.error('Supabase library failed to load. Please check your connection or try refreshing the page.');
+        // Set a minimal config to prevent undefined errors
+        window.BookJournalConfig = {
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY,
+            CLOUDINARY_CLOUD_NAME,
+            CLOUDINARY_UPLOAD_PRESET,
+            ALLOWED_EMAILS,
+            supabase: null,
+            error: 'Supabase library not loaded'
+        };
         return;
     }
     
