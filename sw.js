@@ -22,7 +22,7 @@ const urlsToCache = [
   'https://unpkg.com/onsenui/css/onsen-css-components.min.css',
   'https://unpkg.com/onsenui/js/onsenui.min.js',
   // External libraries
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+  'https://unpkg.com/@supabase/supabase-js@2.39.0/dist/umd/supabase.js'
 ];
 // Install event - cache resources
 self.addEventListener('install', (event) => {

@@ -27,6 +27,13 @@ class BookJournal {
     }
 
     async setupAuth() {
+        // Check if Supabase client is available
+        if (!window.BookJournalConfig || !window.BookJournalConfig.supabase) {
+            console.error('Cannot setup auth: Supabase client not available');
+            this.uiService.showNotification('❌ Unable to connect to the server. Please refresh the page.', 'error');
+            return;
+        }
+        
         const { data: { session } } = await window.BookJournalConfig.supabase.auth.getSession();
 
         if (session) {
@@ -42,7 +49,9 @@ class BookJournal {
             this.uiService.showLoginPage();
         }
 
-        window.BookJournalConfig.supabase.auth.onAuthStateChange(async (event, session) => {
+        // Only set up auth state change listener if Supabase client is available
+        if (window.BookJournalConfig.supabase) {
+            window.BookJournalConfig.supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
                 if (this.authService.isEmailAllowed(session.user.email)) {
                     this.authService.currentUser = session.user;
@@ -58,7 +67,8 @@ class BookJournal {
                 this.books = [];
                 this.uiService.showLoginPage();
             }
-        });
+            });
+        }
     }
 
     setupEventListeners() {
