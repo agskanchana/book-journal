@@ -49,7 +49,9 @@ class BookJournal {
             this.uiService.showLoginPage();
         }
 
-        window.BookJournalConfig.supabase.auth.onAuthStateChange(async (event, session) => {
+        // Only set up auth state change listener if Supabase client is available
+        if (window.BookJournalConfig.supabase) {
+            window.BookJournalConfig.supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
                 if (this.authService.isEmailAllowed(session.user.email)) {
                     this.authService.currentUser = session.user;
@@ -65,7 +67,8 @@ class BookJournal {
                 this.books = [];
                 this.uiService.showLoginPage();
             }
-        });
+            });
+        }
     }
 
     setupEventListeners() {

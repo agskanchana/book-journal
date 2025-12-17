@@ -30,8 +30,7 @@
             CLOUDINARY_CLOUD_NAME,
             CLOUDINARY_UPLOAD_PRESET,
             ALLOWED_EMAILS,
-            supabase: null,
-            error: 'Supabase library not loaded'
+            supabase: null
         };
         return;
     }
