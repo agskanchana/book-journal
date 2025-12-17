@@ -20,6 +20,12 @@
         'agskanchana@gmail.com'
     ];
     
+    // Check if Supabase library is loaded
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        console.error('Supabase library not loaded! Please check your internet connection.');
+        return;
+    }
+    
     // Export to global scope
     window.BookJournalConfig = {
         SUPABASE_URL,
