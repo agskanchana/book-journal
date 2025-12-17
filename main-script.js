@@ -14,6 +14,11 @@ if (!window.supabaseClient && typeof window.supabase !== 'undefined') {
 }
 var supabase = window.supabaseClient;
 
+// Validate that supabase client is initialized
+if (!supabase) {
+    console.error('❌ Supabase client failed to initialize. Please check that the Supabase library is loaded.');
+}
+
 class BookJournal {
     constructor() {
         this.books = [];
