@@ -1,4 +1,4 @@
-const CACHE_NAME = 'book-journal-v1.0.0';
+const CACHE_NAME = 'book-journal-v1.0.1';
 const OFFLINE_URL = './offline.html';
 
 // Files to cache for offline functionality
@@ -6,10 +6,17 @@ const urlsToCache = [
   './',
   './index.html',
   './styles.css',
-  './script.js',
   './pwa.js',
   './offline.html',
   './manifest.json',
+  // JavaScript modules
+  './js/config.js',
+  './js/utils.js',
+  './js/upload.service.js',
+  './js/auth.service.js',
+  './js/ui.service.js',
+  './js/book.service.js',
+  './js/main.js',
   // Onsen UI files
   'https://unpkg.com/onsenui/css/onsenui.css',
   'https://unpkg.com/onsenui/css/onsen-css-components.min.css',
