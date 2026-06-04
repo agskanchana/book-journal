@@ -650,6 +650,31 @@
                             </textarea>
                         </div>
                     </ons-list-item>
+
+                    <!-- Book Cover (only shown for books you own) -->
+                    <div id="editCoverGroup">
+                        <ons-list-item>
+                            <div class="left">
+                                <ons-icon icon="md-photo" class="form-icon"></ons-icon>
+                            </div>
+                            <div class="center">
+                                <div class="simple-upload-container">
+                                    <label for="editBookCover" class="upload-label">
+                                        📷 Change Cover Photo
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="editBookCover"
+                                        accept="image/*"
+                                        class="simple-file-input">
+                                    <div class="upload-help">
+                                        Optional — leave empty to keep the current cover
+                                    </div>
+                                    <div id="editImagePreview" style="margin-top: 10px;"></div>
+                                </div>
+                            </div>
+                        </ons-list-item>
+                    </div>
                 </ons-list>
             </div>
         </ons-page>

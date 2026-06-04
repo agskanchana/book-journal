@@ -520,6 +520,8 @@ class BookJournal {
             return;
         }
 
+        if (!this.requireOnline()) return;
+
         // Prevent multiple submissions
         const saveButton = document.querySelector('.toolbar-button-save');
         if (saveButton && saveButton.disabled) {
@@ -708,7 +710,7 @@ class BookJournal {
     }
 
     getEditFormData() {
-        return {
+        const data = {
             name: this.getElementValue('editBookName'),
             author: this.getElementValue('editAuthorName'),
             status: this.getElementValue('editStatus'),
@@ -716,8 +718,16 @@ class BookJournal {
             current_page: this.getElementValue('editCurrentPage') || null,
             total_pages: this.getElementValue('editTotalPages') || null,
             purchase_date: this.getElementValue('editPurchaseDate') || null,
-            personal_notes: this.getElementValue('editSummary') || null
+            personal_notes: this.getElementValue('editSummary') || null,
+            coverFile: null
         };
+
+        const fileInput = document.getElementById('editBookCover');
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
+            data.coverFile = fileInput.files[0];
+        }
+
+        return data;
     }
 
     getElementValue(id) {
@@ -1119,6 +1129,26 @@ class BookJournal {
             editPageGroup.style.display = book.status === 'Reading' ? 'block' : 'none';
         }
 
+        // Cover photo can only be changed on books you own (shared_books write rule).
+        const editCoverGroup = document.getElementById('editCoverGroup');
+        const isOwner = book.created_by === this.currentUser.uid;
+        if (editCoverGroup) {
+            editCoverGroup.style.display = isOwner ? 'block' : 'none';
+        }
+        // Reset the file picker and show the current cover (if any) as a preview.
+        const editCoverInput = document.getElementById('editBookCover');
+        if (editCoverInput) editCoverInput.value = '';
+        const editPreview = document.getElementById('editImagePreview');
+        if (editPreview) {
+            const safeCover = this.safeUrl(book.cover_url);
+            editPreview.innerHTML = safeCover
+                ? `<div style="text-align:center;"><img src="${this.escapeHtml(safeCover)}" alt="Current cover" style="max-width:100px;max-height:150px;border-radius:8px;"><p style="font-size:0.8rem;color:#666;margin:5px 0 0;">Current cover</p></div>`
+                : '';
+        }
+
+        // Make sure the cover file picker is wired up
+        this.setupFileInputListener();
+
         // Show the modal
         showEditBookModal();
 
@@ -1150,6 +1180,8 @@ class BookJournal {
             });
             return;
         }
+
+        if (!this.requireOnline()) return;
 
         const formData = this.getEditFormData();
 
@@ -1185,12 +1217,25 @@ class BookJournal {
             // Update the shared book data (if user owns it)
             const book = this.books.find(b => String(b.id) === String(this.editingBookId));
             if (book && book.created_by === this.currentUser.uid) {
-                await db.collection('shared_books').doc(String(this.editingBookId)).update({
+                const bookUpdate = {
                     name: formData.name,
                     author: formData.author,
                     category: formData.category,
                     total_pages: formData.total_pages ? parseInt(formData.total_pages) : null
-                });
+                };
+
+                // Upload a new cover only if the user picked one
+                if (formData.coverFile) {
+                    try {
+                        const newCoverUrl = await this.uploadImage(formData.coverFile);
+                        if (newCoverUrl) bookUpdate.cover_url = newCoverUrl;
+                    } catch (coverErr) {
+                        console.error('Cover upload failed:', coverErr);
+                        this.showNotification('Cover upload failed — other changes will still be saved', 'error');
+                    }
+                }
+
+                await db.collection('shared_books').doc(String(this.editingBookId)).update(bookUpdate);
             }
 
             // Update or create user progress (doc id = `${uid}_${bookId}`)
@@ -1292,6 +1337,8 @@ openProgressModal(bookId) {
             return;
         }
 
+        if (!this.requireOnline()) return;
+
         const currentPage = parseInt(this.getElementValue('updateCurrentPage'));
 
         if (!currentPage || currentPage < 1) {
@@ -1354,6 +1401,8 @@ openProgressModal(bookId) {
             });
             return;
         }
+
+        if (!this.requireOnline()) return;
 
         const book = this.books.find(b => String(b.id) === String(id));
         if (!book || book.created_by !== this.currentUser.uid) {
@@ -1496,6 +1545,8 @@ openProgressModal(bookId) {
             });
             return;
         }
+
+        if (!this.requireOnline()) return;
 
         try {
             // Check if user already has progress for this book
@@ -1713,6 +1764,7 @@ openProgressModal(bookId) {
 
     async saveWishlistItem() {
         if (!this.currentUser) return;
+        if (!this.requireOnline()) return;
 
         const title = this.getElementValue('wishTitle');
         if (!title || !title.trim()) {
@@ -1755,6 +1807,8 @@ openProgressModal(bookId) {
             return;
         }
 
+        if (!this.requireOnline()) return;
+
         ons.notification.confirm({
             message: `🗑️ Remove "${item.title}" from the wishlist?`,
             title: 'Confirm Delete',
@@ -1793,6 +1847,8 @@ openProgressModal(bookId) {
             this.showNotification('You can only move your own wishlist items', 'error');
             return;
         }
+
+        if (!this.requireOnline()) return;
 
         ons.notification.confirm({
             message: `📚 Add "${item.title}" to your library and remove it from the wishlist?`,
@@ -1837,6 +1893,20 @@ openProgressModal(bookId) {
                 this.showNotification('Error moving item to library', 'error');
             }
         });
+    }
+
+    // Writes need a live connection: Firestore write promises don't resolve while
+    // offline, and Cloudinary uploads have no offline queue. Guard write actions.
+    requireOnline() {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            ons.notification.alert({
+                message: '📡 You appear to be offline.\n\nYou can browse your library offline, but adding or changing books — and uploading cover photos — needs an internet connection. Please reconnect and try again.',
+                title: "You're Offline",
+                buttonLabel: 'OK'
+            });
+            return false;
+        }
+        return true;
     }
 
     // Escape user text before injecting into innerHTML.
@@ -1922,6 +1992,18 @@ openProgressModal(bookId) {
 
             bookCover.addEventListener('change', this.fileHandler);
             console.log('File input listener setup completed');
+        }
+
+        // Edit-modal cover picker
+        const editBookCover = document.getElementById('editBookCover');
+        if (editBookCover) {
+            editBookCover.removeEventListener('change', this.editFileHandler);
+            this.editFileHandler = (e) => {
+                if (e.target.files[0]) {
+                    this.previewImage(e, 'editImagePreview');
+                }
+            };
+            editBookCover.addEventListener('change', this.editFileHandler);
         }
     }
 
@@ -2269,6 +2351,12 @@ function hideEditBookModal() {
     const modal = document.getElementById('editBookModal');
     if (modal) {
         modal.style.display = 'none';
+
+        // Clear the cover picker + preview
+        const editCoverInput = document.getElementById('editBookCover');
+        if (editCoverInput) editCoverInput.value = '';
+        const editPreview = document.getElementById('editImagePreview');
+        if (editPreview) editPreview.innerHTML = '';
 
         // Reset editing state completely
         if (window.bookJournal) {
