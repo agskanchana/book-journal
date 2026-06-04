@@ -1,0 +1,12 @@
+{
+  "name": "book-journal-migration",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One-time data import from the Supabase backup into Firebase Firestore.",
+  "scripts": {
+    "import": "node import.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  }
+}

@@ -1,0 +1,8 @@
+# Migration secrets & deps — NEVER commit these
+migration/serviceAccount.json
+migration/node_modules/
+node_modules/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

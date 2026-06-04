@@ -1,12 +1,12 @@
-const CACHE_NAME = 'book-journal-v1.0.0';
+const CACHE_NAME = 'book-journal-v2.1.0';
 const OFFLINE_URL = './offline.html';
 
 // Files to cache for offline functionality
 const urlsToCache = [
   './',
   './index.html',
-  './styles.css',
-  './script.js',
+  './theme.css',
+  './main-script.js',
   './pwa.js',
   './offline.html',
   './manifest.json',
@@ -14,8 +14,10 @@ const urlsToCache = [
   'https://unpkg.com/onsenui/css/onsenui.css',
   'https://unpkg.com/onsenui/css/onsen-css-components.min.css',
   'https://unpkg.com/onsenui/js/onsenui.min.js',
-  // External libraries
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
+  // Firebase (compat builds)
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'
 ];
 // Install event - cache resources
 self.addEventListener('install', (event) => {

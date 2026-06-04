@@ -1,22 +1,35 @@
-/* filepath: script.js */
-// Supabase configuration
-const SUPABASE_URL = 'https://kqalpririerpragsbcew.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxYWxwcmlyaWVycHJhZ3NiY2V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg2OTgyNTQsImV4cCI6MjA2NDI3NDI1NH0.CSx6inFHg83Wxpd-jie7MMRy--RLWGs6rYAIcLjgMxk';
+/* filepath: main-script.js */
+// Firebase configuration
+// TODO: Replace the placeholder values below with YOUR Firebase web app config.
+// Find them in: Firebase Console -> Project settings (gear icon) -> "Your apps"
+// -> SDK setup and configuration -> "Config".
+// NOTE: these values are NOT secret. Security is enforced by Firestore Security
+// Rules (firestore.rules) + the Authorized domains list in Firebase Auth.
+const firebaseConfig = {
+    apiKey: "AIzaSyC7eKpfe5_pbPuHdD8Gc1LOKMqOPi-0NrY",
+    authDomain: "book-journal-edd84.firebaseapp.com",
+    projectId: "book-journal-edd84",
+    storageBucket: "book-journal-edd84.firebasestorage.app",
+    messagingSenderId: "308099076804",
+    appId: "1:308099076804:web:4bdf008f5ef2a19c3d6f91"
+};
 
-// Cloudinary configuration
+// Cloudinary configuration (unchanged)
 const CLOUDINARY_CLOUD_NAME = 'dt7i4uwts';
 const CLOUDINARY_UPLOAD_PRESET = 'book-journal';
 
-// Initialize Supabase (only if not already initialized)
-// Use var instead of const to allow redeclaration if script loads multiple times
-if (!window.supabaseClient && typeof window.supabase !== 'undefined') {
-    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize Firebase (only once, even if this script is evaluated more than once)
+if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
 }
-var supabase = window.supabaseClient;
 
-// Validate that supabase client is initialized
-if (!supabase) {
-    console.error('❌ Supabase client failed to initialize. Please check that the Supabase library is loaded.');
+// Firebase service handles
+var auth = (typeof firebase !== 'undefined') ? firebase.auth() : null;
+var db = (typeof firebase !== 'undefined') ? firebase.firestore() : null;
+
+// Validate that Firebase initialized
+if (!auth || !db) {
+    console.error('❌ Firebase failed to initialize. Please check that the Firebase compat libraries are loaded in index.html.');
 }
 
 class BookJournal {
@@ -29,6 +42,8 @@ class BookJournal {
         this.currentPage = 1;
         this.itemsPerPage = 20; // Show 20 books per page
         this.filteredBooks = [];
+        this.wishlist = [];          // global shared wishlist
+        this.editingWishlistId = null;
         this.init();
     }
 
@@ -44,36 +59,23 @@ class BookJournal {
         }
     }
 
-    async setupAuth() {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (session) {
-            // Check if user email is allowed
-            if (this.isEmailAllowed(session.user.email)) {
-                this.currentUser = session.user;
-                this.showMainApp();
-                this.loadBooks();
-            } else {
-                // Sign out unauthorized user
-                await this.signOutUnauthorized(session.user.email);
-            }
-        } else {
-            this.showLoginPage();
-        }
-
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
+    setupAuth() {
+        // Firebase fires this once on load with the restored user (or null),
+        // and again on every sign-in / sign-out. Replaces getSession + onAuthStateChange.
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
                 // Check if user email is allowed
-                if (this.isEmailAllowed(session.user.email)) {
-                    this.currentUser = session.user;
-                    await this.createUserProfile(session.user);
+                if (this.isEmailAllowed(user.email)) {
+                    this.currentUser = user;
+                    await this.createUserProfile(user);
                     this.showMainApp();
                     this.loadBooks();
+                    this.loadWishlist();
                 } else {
                     // Sign out unauthorized user
-                    await this.signOutUnauthorized(session.user.email);
+                    await this.signOutUnauthorized(user.email);
                 }
-            } else if (event === 'SIGNED_OUT') {
+            } else {
                 this.currentUser = null;
                 this.books = [];
                 this.showLoginPage();
@@ -83,25 +85,21 @@ class BookJournal {
 
     async createUserProfile(user) {
         try {
-            // Use upsert (insert or update) to handle existing profiles
-            const { error } = await supabase
-                .from('user_profiles')
-                .upsert([{
-                    id: user.id,
-                    email: user.email,
-                    full_name: user.user_metadata?.full_name ||
-                              user.user_metadata?.name ||
-                              user.email.split('@')[0],
-                    avatar_url: user.user_metadata?.avatar_url ||
-                               user.user_metadata?.picture || ''
-                }], {
-                    onConflict: 'id',
-                    ignoreDuplicates: false
-                });
+            // Upsert profile (doc id = Firebase UID). Preserve created_at on existing docs.
+            const ref = db.collection('user_profiles').doc(user.uid);
+            const snap = await ref.get();
 
-            if (error) {
-                console.error('Error creating/updating user profile:', error);
+            const data = {
+                email: user.email,
+                full_name: user.displayName || user.email.split('@')[0],
+                avatar_url: user.photoURL || ''
+            };
+
+            if (!snap.exists) {
+                data.created_at = firebase.firestore.FieldValue.serverTimestamp();
             }
+
+            await ref.set(data, { merge: true });
         } catch (error) {
             console.error('Error with user profile:', error);
         }
@@ -120,8 +118,8 @@ class BookJournal {
 
     updateUserInfo() {
         if (this.currentUser) {
-            const userName = this.currentUser.user_metadata?.full_name || this.currentUser.email;
-            const userAvatar = this.currentUser.user_metadata?.avatar_url || '';
+            const userName = this.currentUser.displayName || this.currentUser.email;
+            const userAvatar = this.currentUser.photoURL || '';
 
             // Update toolbar user info
             const userNameEl = document.getElementById('userName');
@@ -217,6 +215,14 @@ class BookJournal {
                 this.handleBookAction(e);
             });
         }
+
+        // Event delegation for wishlist items
+        const wishlistContainer = document.getElementById('wishlistItems');
+        if (wishlistContainer) {
+            wishlistContainer.addEventListener('click', (e) => {
+                this.handleWishlistAction(e);
+            });
+        }
     }
 
     handleBookAction(e) {
@@ -224,7 +230,7 @@ class BookJournal {
     if (!button) return;
 
     const action = button.getAttribute('data-action');
-    const bookId = parseInt(button.getAttribute('data-book-id'));
+    const bookId = button.getAttribute('data-book-id'); // Firestore doc id (string)
 
     console.log('Button clicked:', { action, bookId, button });
 
@@ -522,7 +528,7 @@ class BookJournal {
 
             console.log('=== ADD BOOK DEBUG ===');
             console.log('Form data:', formData);
-            console.log('Current user:', this.currentUser.id);
+            console.log('Current user:', this.currentUser.uid);
 
             // Upload image if provided (with timeout protection)
             let cover_url = null;
@@ -549,7 +555,7 @@ class BookJournal {
                 }
             }
 
-            // First, add the book to shared_books
+            // First, add the book to shared_books (Firestore auto-generated string id)
             const sharedBookData = {
                 name: formData.name.trim(),
                 author: formData.author.trim(),
@@ -557,44 +563,37 @@ class BookJournal {
                 summary: formData.summary || null,
                 total_pages: parseInt(formData.total_pages),
                 cover_url: cover_url,
-                created_by: this.currentUser.id
+                created_by: this.currentUser.uid,
+                created_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             console.log('Adding book to shared_books:', sharedBookData);
 
-            const { data: bookData, error: bookError } = await supabase
-                .from('shared_books')
-                .insert([sharedBookData])
-                .select()
-                .single();
+            const bookRef = db.collection('shared_books').doc();
+            await bookRef.set(sharedBookData);
+            const bookId = bookRef.id;
 
-            if (bookError) {
-                console.error('Book insert error:', bookError);
-                throw bookError;
-            }
+            console.log('Book added to shared_books with id:', bookId);
 
-            console.log('Book added to shared_books:', bookData);
-
-            // Then, add the user's personal reading progress
+            // Then, add the user's personal reading progress (doc id = `${uid}_${bookId}`)
             const progressData = {
-                user_id: this.currentUser.id,
-                book_id: bookData.id,
+                user_id: this.currentUser.uid,
+                book_id: bookId,
                 status: formData.status,
                 current_page: formData.current_page ? parseInt(formData.current_page) : null,
                 purchase_date: formData.purchase_date || null,
-                started_reading_at: formData.status === 'Reading' ? new Date().toISOString() : null
+                personal_notes: null,
+                started_reading_at: formData.status === 'Reading' ? firebase.firestore.FieldValue.serverTimestamp() : null,
+                finished_reading_at: null,
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             console.log('Adding progress data:', progressData);
 
-            const { error: progressError } = await supabase
-                .from('user_reading_progress')
-                .insert([progressData]);
-
-            if (progressError) {
-                console.error('Progress insert error:', progressError);
-                throw progressError;
-            }
+            await db.collection('user_reading_progress')
+                .doc(`${this.currentUser.uid}_${bookId}`)
+                .set(progressData);
 
             console.log('Progress added successfully');
 
@@ -796,54 +795,51 @@ class BookJournal {
     async loadBooks() {
         if (!this.currentUser) return;
 
-        console.log('Loading books for user:', this.currentUser.id);
+        console.log('Loading books for user:', this.currentUser.uid);
 
         try {
-            // Load ALL shared books with user's personal progress (if any)
-            const { data: booksData, error: booksError } = await supabase
-                .from('shared_books')
-                .select(`
-                    *,
-                    user_reading_progress!left (
-                        status,
-                        current_page,
-                        purchase_date,
-                        personal_notes,
-                        started_reading_at,
-                        finished_reading_at
-                    )
-                `)
-                .eq('user_reading_progress.user_id', this.currentUser.id)
-                .order('created_at', { ascending: false });
+            // Firestore has no server-side joins, so we do this in three reads:
+            // 1) all shared books, 2) this user's progress, 3) creator profiles. Merge in memory.
 
-            if (booksError) throw booksError;
+            // 1) Load ALL shared books
+            const booksSnapshot = await db.collection('shared_books')
+                .orderBy('created_at', 'desc')
+                .get();
 
-            console.log('Raw books data from database:', booksData);
+            // 2) Load this user's reading progress and index it by book_id
+            const progressSnapshot = await db.collection('user_reading_progress')
+                .where('user_id', '==', this.currentUser.uid)
+                .get();
 
-            // Get unique creator IDs
-            const creatorIds = [...new Set(booksData.map(book => book.created_by))];
+            const progressMap = new Map();
+            progressSnapshot.forEach(doc => {
+                const p = doc.data();
+                progressMap.set(p.book_id, p);
+            });
 
-            // Get creator profiles in a separate query
-            const { data: creatorsData, error: creatorsError } = await supabase
-                .from('user_profiles')
-                .select('id, full_name, email')
-                .in('id', creatorIds);
-
-            // Create a map for quick lookup (don't fail if creators query fails)
+            // 3) Load creator profiles for the books we have (point reads by UID)
+            const creatorIds = [...new Set(booksSnapshot.docs.map(doc => doc.data().created_by))];
             const creatorsMap = new Map();
-            if (!creatorsError && creatorsData) {
-                creatorsData.forEach(creator => {
-                    creatorsMap.set(creator.id, creator);
-                });
-            }
+            await Promise.all(creatorIds.map(async (creatorId) => {
+                if (!creatorId) return;
+                try {
+                    const creatorDoc = await db.collection('user_profiles').doc(creatorId).get();
+                    if (creatorDoc.exists) {
+                        creatorsMap.set(creatorId, creatorDoc.data());
+                    }
+                } catch (e) {
+                    console.warn('Could not load creator profile:', creatorId, e);
+                }
+            }));
 
             // Transform data to match the expected format
-            this.books = booksData.map(book => {
-                const progress = book.user_reading_progress[0] || {};
+            this.books = booksSnapshot.docs.map(doc => {
+                const book = doc.data();
+                const progress = progressMap.get(doc.id) || {};
                 const creator = creatorsMap.get(book.created_by) || {};
 
                 return {
-                    id: book.id,
+                    id: doc.id, // Firestore doc id (string)
                     name: book.name,
                     author: book.author,
                     category: book.category,
@@ -878,46 +874,15 @@ class BookJournal {
         }
     }
 
-    async ensureCreatorProfiles(creatorIds) {
-        const missingIds = [];
-
-        // Check which profiles are missing
-        for (const creatorId of creatorIds) {
-            const { data: profile } = await supabase
-                .from('user_profiles')
-                .select('id')
-                .eq('id', creatorId)
-                .single();
-
-            if (!profile) {
-                missingIds.push(creatorId);
-            }
-        }
-
-        // Create missing profiles
-        if (missingIds.length > 0) {
-            const missingProfiles = missingIds.map(id => ({
-                id: id,
-                email: 'unknown@example.com',
-                full_name: 'Community Member',
-                avatar_url: ''
-            }));
-
-            await supabase
-                .from('user_profiles')
-                .insert(missingProfiles);
-        }
-    }
-
     updateStats() {
         // Total Books = All books in the shared library (added by all users)
         const totalBooks = this.books.length;
 
         // Books that the user is actively tracking
-        const trackedBooks = this.books.filter(book => book.hasProgress || book.created_by === this.currentUser.id);
+        const trackedBooks = this.books.filter(book => book.hasProgress || book.created_by === this.currentUser.uid);
 
         // Books that user hasn't started tracking yet (available to read)
-        const untrackedBooks = this.books.filter(book => !book.hasProgress && book.created_by !== this.currentUser.id);
+        const untrackedBooks = this.books.filter(book => !book.hasProgress && book.created_by !== this.currentUser.uid);
 
         // Personal reading progress
         const readingBooks = trackedBooks.filter(book => book.status === 'Reading').length;
@@ -1016,7 +981,7 @@ class BookJournal {
         : '';
 
     // Show who added the book with actual name
-    const addedBy = book.created_by !== this.currentUser.id
+    const addedBy = book.created_by !== this.currentUser.uid
         ? `<div class="book-meta">
              <small>👤 Added by ${book.creator_name}</small>
            </div>`
@@ -1025,7 +990,7 @@ class BookJournal {
            </div>`;
 
     // Show different buttons based on whether user has started tracking or owns the book
-    const actionButtons = book.created_by === this.currentUser.id
+    const actionButtons = book.created_by === this.currentUser.uid
     ? `<button class="action-btn btn-edit" data-action="edit" data-book-id="${book.id}">
            ✏️ Edit
        </button>
@@ -1091,7 +1056,7 @@ class BookJournal {
             return;
         }
 
-        const book = this.books.find(b => b.id === bookId);
+        const book = this.books.find(b => String(b.id) === String(bookId));
         if (!book) {
             ons.notification.alert({
                 message: '❌ Book not found',
@@ -1184,66 +1149,46 @@ class BookJournal {
 
         try {
             // Update the shared book data (if user owns it)
-            const book = this.books.find(b => b.id === this.editingBookId);
-            if (book && book.created_by === this.currentUser.id) {
-                const { error: bookError } = await supabase
-                    .from('shared_books')
-                    .update({
-                        name: formData.name,
-                        author: formData.author,
-                        category: formData.category,
-                        total_pages: formData.total_pages ? parseInt(formData.total_pages) : null
-                    })
-                    .eq('id', this.editingBookId)
-                    .eq('created_by', this.currentUser.id);
-
-                if (bookError) throw bookError;
+            const book = this.books.find(b => String(b.id) === String(this.editingBookId));
+            if (book && book.created_by === this.currentUser.uid) {
+                await db.collection('shared_books').doc(String(this.editingBookId)).update({
+                    name: formData.name,
+                    author: formData.author,
+                    category: formData.category,
+                    total_pages: formData.total_pages ? parseInt(formData.total_pages) : null
+                });
             }
 
-            // Update or create user progress
-            const { data: existingProgress } = await supabase
-                .from('user_reading_progress')
-                .select('*')
-                .eq('user_id', this.currentUser.id)
-                .eq('book_id', this.editingBookId)
-                .single();
+            // Update or create user progress (doc id = `${uid}_${bookId}`)
+            const progressRef = db.collection('user_reading_progress')
+                .doc(`${this.currentUser.uid}_${this.editingBookId}`);
+            const existingSnap = await progressRef.get();
+            const existingProgress = existingSnap.exists ? existingSnap.data() : null;
 
             const updateData = {
+                user_id: this.currentUser.uid,
+                book_id: String(this.editingBookId),
                 status: formData.status,
-                current_page: formData.current_page,
-                purchase_date: formData.purchase_date,
-                personal_notes: formData.personal_notes
+                current_page: formData.current_page ? parseInt(formData.current_page) : null,
+                purchase_date: formData.purchase_date || null,
+                personal_notes: formData.personal_notes || null,
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             // Add timestamps based on status changes
             if (formData.status === 'Reading' && (!existingProgress || existingProgress.status !== 'Reading')) {
-                updateData.started_reading_at = new Date().toISOString();
+                updateData.started_reading_at = firebase.firestore.FieldValue.serverTimestamp();
             } else if (formData.status === 'Read' && (!existingProgress || existingProgress.status !== 'Read')) {
-                updateData.finished_reading_at = new Date().toISOString();
+                updateData.finished_reading_at = firebase.firestore.FieldValue.serverTimestamp();
                 updateData.current_page = null; // Clear current page when finished
             }
 
-            if (existingProgress) {
-                // Update existing progress
-                const { error } = await supabase
-                    .from('user_reading_progress')
-                    .update(updateData)
-                    .eq('user_id', this.currentUser.id)
-                    .eq('book_id', this.editingBookId);
-
-                if (error) throw error;
-            } else {
-                // Create new progress record
-                const { error } = await supabase
-                    .from('user_reading_progress')
-                    .insert([{
-                        user_id: this.currentUser.id,
-                        book_id: this.editingBookId,
-                        ...updateData
-                    }]);
-
-                if (error) throw error;
+            if (!existingProgress) {
+                updateData.created_at = firebase.firestore.FieldValue.serverTimestamp();
             }
+
+            // set with merge handles both "update existing" and "create new"
+            await progressRef.set(updateData, { merge: true });
 
             ons.notification.alert({
                 message: '✅ Book updated successfully!',
@@ -1270,7 +1215,7 @@ class BookJournal {
 
 openProgressModal(bookId) {
     this.currentBookForUpdate = bookId;
-    const book = this.books.find(b => b.id === bookId);
+    const book = this.books.find(b => String(b.id) === String(bookId));
 
     if (book) {
         this.setElementValue('updateCurrentPage', book.current_page || '');
@@ -1324,7 +1269,7 @@ openProgressModal(bookId) {
             return;
         }
 
-        const book = this.books.find(b => b.id === this.currentBookForUpdate);
+        const book = this.books.find(b => String(b.id) === String(this.currentBookForUpdate));
         if (book && book.total_pages && currentPage > book.total_pages) {
             ons.notification.alert({
                 message: '📖 Current page cannot exceed total pages',
@@ -1336,23 +1281,22 @@ openProgressModal(bookId) {
 
         try {
             const updateData = {
-                current_page: currentPage
+                user_id: this.currentUser.uid,
+                book_id: String(this.currentBookForUpdate),
+                current_page: currentPage,
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             // If reached the end, mark as read
             if (book && book.total_pages && currentPage >= book.total_pages) {
                 updateData.status = 'Read';
                 updateData.current_page = null;
-                updateData.finished_reading_at = new Date().toISOString();
+                updateData.finished_reading_at = firebase.firestore.FieldValue.serverTimestamp();
             }
 
-            const { error } = await supabase
-                .from('user_reading_progress')
-                .update(updateData)
-                .eq('user_id', this.currentUser.id)
-                .eq('book_id', this.currentBookForUpdate);
-
-            if (error) throw error;
+            await db.collection('user_reading_progress')
+                .doc(`${this.currentUser.uid}_${this.currentBookForUpdate}`)
+                .set(updateData, { merge: true });
 
             this.showNotification(
                 updateData.status === 'Read' ? '🎉 Book completed!' : '📊 Progress updated!',
@@ -1377,8 +1321,8 @@ openProgressModal(bookId) {
             return;
         }
 
-        const book = this.books.find(b => b.id === id);
-        if (!book || book.created_by !== this.currentUser.id) {
+        const book = this.books.find(b => String(b.id) === String(id));
+        if (!book || book.created_by !== this.currentUser.uid) {
             ons.notification.alert({
                 message: '❌ You can only delete books you added',
                 title: 'Permission Denied',
@@ -1404,23 +1348,25 @@ openProgressModal(bookId) {
         try {
             console.log('=== DELETE DEBUG INFO ===');
             console.log('Attempting to delete book with ID:', id);
-            console.log('Current user ID:', this.currentUser.id);
+            console.log('Current user ID:', this.currentUser.uid);
 
             // First check if the book exists and user owns it
-            const { data: bookCheck, error: checkError } = await supabase
-                .from('shared_books')
-                .select('id, name, created_by')
-                .eq('id', id)
-                .single();
+            const bookRef = db.collection('shared_books').doc(String(id));
+            const bookSnap = await bookRef.get();
 
-            if (checkError) {
-                console.error('Error checking book:', checkError);
-                throw checkError;
+            if (!bookSnap.exists) {
+                ons.notification.alert({
+                    message: '❌ Book not found.',
+                    title: 'Delete Failed',
+                    buttonLabel: 'OK'
+                });
+                return;
             }
 
+            const bookCheck = bookSnap.data();
             console.log('Book found:', bookCheck);
 
-            if (bookCheck.created_by !== this.currentUser.id) {
+            if (bookCheck.created_by !== this.currentUser.uid) {
                 ons.notification.alert({
                     message: '❌ You do not have permission to delete this book',
                     title: 'Permission Denied',
@@ -1429,44 +1375,22 @@ openProgressModal(bookId) {
                 return;
             }
 
-            // Delete progress records first (for ALL users, not just current user)
-            console.log('Deleting all progress records for book ID:', id);
-            const { data: deletedProgress, error: progressError } = await supabase
-                .from('user_reading_progress')
-                .delete()
-                .eq('book_id', id)
-                .select(); // Add select to see what was deleted
-
-            if (progressError) {
-                console.error('Error deleting progress records:', progressError);
-            } else {
-                console.log('Deleted progress records:', deletedProgress);
+            // Delete this user's own progress record. Security rules only permit
+            // deleting your own progress, so the other user's progress (if any) is
+            // left orphaned and simply never matched in loadBooks (harmless).
+            console.log('Deleting own progress record for book ID:', id);
+            try {
+                await db.collection('user_reading_progress')
+                    .doc(`${this.currentUser.uid}_${id}`)
+                    .delete();
+            } catch (progressError) {
+                console.error('Error deleting progress record:', progressError);
             }
 
             // Delete the book
             console.log('Deleting book...');
-            const { data: deletedBook, error: bookError } = await supabase
-                .from('shared_books')
-                .delete()
-                .eq('id', id)
-                .eq('created_by', this.currentUser.id)
-                .select(); // Add select to see what was deleted
-
-            if (bookError) {
-                console.error('Error deleting book:', bookError);
-                throw bookError;
-            }
-
-            console.log('Deleted book:', deletedBook);
-
-            if (!deletedBook || deletedBook.length === 0) {
-                ons.notification.alert({
-                    message: '❌ No book was deleted. You may not have permission.',
-                    title: 'Delete Failed',
-                    buttonLabel: 'OK'
-                });
-                return;
-            }
+            await bookRef.delete();
+            console.log('Deleted book:', id);
 
             // Force reload books after successful deletion
             console.log('Reloading books...');
@@ -1541,14 +1465,11 @@ openProgressModal(bookId) {
 
         try {
             // Check if user already has progress for this book
-            const { data: existingProgress } = await supabase
-                .from('user_reading_progress')
-                .select('*')
-                .eq('user_id', this.currentUser.id)
-                .eq('book_id', bookId)
-                .single();
+            const progressRef = db.collection('user_reading_progress')
+                .doc(`${this.currentUser.uid}_${bookId}`);
+            const existingSnap = await progressRef.get();
 
-            if (existingProgress) {
+            if (existingSnap.exists) {
                 ons.notification.alert({
                     message: 'ℹ️ You are already tracking this book',
                     title: 'Already Tracking',
@@ -1558,15 +1479,18 @@ openProgressModal(bookId) {
             }
 
             // Create new progress record with "Not Read" status
-            const { error } = await supabase
-                .from('user_reading_progress')
-                .insert([{
-                    user_id: this.currentUser.id,
-                    book_id: bookId,
-                    status: 'Not Read'
-                }]);
-
-            if (error) throw error;
+            await progressRef.set({
+                user_id: this.currentUser.uid,
+                book_id: String(bookId),
+                status: 'Not Read',
+                current_page: null,
+                purchase_date: null,
+                personal_notes: null,
+                started_reading_at: null,
+                finished_reading_at: null,
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                updated_at: firebase.firestore.FieldValue.serverTimestamp()
+            });
 
             ons.notification.alert({
                 message: '✅ Started tracking this book! You can now update your progress.',
@@ -1646,14 +1570,214 @@ openProgressModal(bookId) {
         };
     }
 
+    // ---------------- Wishlist (global, shared, labelled by owner) ----------------
+
+    async loadWishlist() {
+        if (!this.currentUser) return;
+        try {
+            const snapshot = await db.collection('wishlist')
+                .orderBy('created_at', 'desc')
+                .get();
+
+            this.wishlist = snapshot.docs.map(doc => {
+                const w = doc.data();
+                return {
+                    id: doc.id,
+                    title: w.title,
+                    author: w.author || '',
+                    note: w.note || '',
+                    link: w.link || '',
+                    created_by: w.created_by,
+                    created_by_name: w.created_by_name || 'Someone'
+                };
+            });
+
+            this.renderWishlist();
+        } catch (error) {
+            console.error('Error loading wishlist:', error);
+            this.showNotification('Error loading wishlist', 'error');
+        }
+    }
+
+    renderWishlist() {
+        const container = document.getElementById('wishlistItems');
+        if (!container) return;
+
+        if (!this.wishlist || this.wishlist.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🎁</div>
+                    <h3>Wishlist is empty</h3>
+                    <p>Add a book you'd love to read or buy next!</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = this.wishlist.map(item => {
+            const isOwner = item.created_by === this.currentUser.uid;
+            const safeLink = this.safeUrl(item.link);
+            const linkHtml = safeLink
+                ? `<a href="${this.escapeHtml(safeLink)}" target="_blank" rel="noopener noreferrer"
+                       style="display:inline-block;padding:6px 10px;color:#4285f4;font-weight:600;text-decoration:none;">🔗 View</a>`
+                : '';
+            const noteHtml = item.note
+                ? `<div class="book-summary"><div>${this.escapeHtml(item.note)}</div></div>`
+                : '';
+            const actions = isOwner
+                ? `<button class="action-btn btn-edit" data-wish-action="edit" data-wish-id="${item.id}">✏️ Edit</button>
+                   <button class="action-btn btn-delete" data-wish-action="delete" data-wish-id="${item.id}">🗑️ Delete</button>`
+                : '';
+
+            return `
+                <div class="book-card">
+                    <div class="book-card-content">
+                        <div class="book-info">
+                            <h3 class="book-title">${this.escapeHtml(item.title)}</h3>
+                            ${item.author ? `<p class="book-author">by ${this.escapeHtml(item.author)}</p>` : ''}
+                            <div class="book-meta">
+                                <span class="meta-tag">🎁 ${this.escapeHtml(item.created_by_name)}'s wishlist</span>
+                            </div>
+                            ${noteHtml}
+                        </div>
+                    </div>
+                    <div class="book-actions">
+                        ${linkHtml}
+                        ${actions}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    openWishlistModal(id = null) {
+        this.editingWishlistId = id;
+        const titleEl = document.getElementById('wishlistModalTitle');
+
+        if (id) {
+            const item = this.wishlist.find(w => String(w.id) === String(id));
+            if (!item) return;
+            if (item.created_by !== this.currentUser.uid) {
+                this.showNotification('You can only edit your own wishlist items', 'error');
+                return;
+            }
+            this.setElementValue('wishTitle', item.title || '');
+            this.setElementValue('wishAuthor', item.author || '');
+            this.setElementValue('wishLink', item.link || '');
+            this.setElementValue('wishNote', item.note || '');
+            if (titleEl) titleEl.textContent = 'Edit Wishlist Item';
+        } else {
+            this.setElementValue('wishTitle', '');
+            this.setElementValue('wishAuthor', '');
+            this.setElementValue('wishLink', '');
+            this.setElementValue('wishNote', '');
+            if (titleEl) titleEl.textContent = 'Add to Wishlist';
+        }
+
+        const modal = document.getElementById('wishlistModal');
+        if (modal) modal.style.display = 'block';
+    }
+
+    async saveWishlistItem() {
+        if (!this.currentUser) return;
+
+        const title = this.getElementValue('wishTitle');
+        if (!title || !title.trim()) {
+            ons.notification.alert({ message: '📝 Please enter a book title', title: 'Missing Information', buttonLabel: 'OK' });
+            return;
+        }
+
+        const data = {
+            title: title.trim(),
+            author: this.getElementValue('wishAuthor').trim() || null,
+            link: this.getElementValue('wishLink').trim() || null,
+            note: this.getElementValue('wishNote').trim() || null,
+            updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            if (this.editingWishlistId) {
+                await db.collection('wishlist').doc(String(this.editingWishlistId)).update(data);
+            } else {
+                data.created_by = this.currentUser.uid;
+                data.created_by_name = this.currentUser.displayName || this.currentUser.email.split('@')[0];
+                data.created_at = firebase.firestore.FieldValue.serverTimestamp();
+                await db.collection('wishlist').add(data);
+            }
+
+            hideWishlistModal();
+            this.editingWishlistId = null;
+            await this.loadWishlist();
+            this.showNotification('🎁 Wishlist updated!', 'success');
+        } catch (error) {
+            console.error('Error saving wishlist item:', error);
+            this.showNotification('Error saving wishlist item', 'error');
+        }
+    }
+
+    async deleteWishlistItem(id) {
+        const item = this.wishlist.find(w => String(w.id) === String(id));
+        if (!item || item.created_by !== this.currentUser.uid) {
+            this.showNotification('You can only delete your own wishlist items', 'error');
+            return;
+        }
+
+        ons.notification.confirm({
+            message: `🗑️ Remove "${item.title}" from the wishlist?`,
+            title: 'Confirm Delete',
+            buttonLabels: ['Cancel', 'Delete']
+        }).then(async (buttonIndex) => {
+            if (buttonIndex === 1) {
+                try {
+                    await db.collection('wishlist').doc(String(id)).delete();
+                    await this.loadWishlist();
+                    this.showNotification('Removed from wishlist', 'success');
+                } catch (error) {
+                    console.error('Error deleting wishlist item:', error);
+                    this.showNotification('Error removing item', 'error');
+                }
+            }
+        });
+    }
+
+    handleWishlistAction(e) {
+        const button = e.target.closest('.action-btn');
+        if (!button) return;
+        const action = button.getAttribute('data-wish-action');
+        const id = button.getAttribute('data-wish-id');
+        if (!action || !id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (action === 'edit') this.openWishlistModal(id);
+        else if (action === 'delete') this.deleteWishlistItem(id);
+    }
+
+    // Escape user text before injecting into innerHTML.
+    escapeHtml(str) {
+        if (str == null) return '';
+        return String(str).replace(/[&<>"']/g, s => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[s]));
+    }
+
+    // Only allow http/https links (blocks javascript: etc.); prepend https:// if missing.
+    safeUrl(url) {
+        if (!url) return '';
+        let u = String(url).trim();
+        if (!u) return '';
+        if (!/^https?:\/\//i.test(u)) {
+            if (/^[\w.-]+\.[a-z]{2,}/i.test(u)) u = 'https://' + u;
+            else return '';
+        }
+        try {
+            const parsed = new URL(u);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+        } catch (e) {}
+        return '';
+    }
+
     async checkConnection() {
         try {
-            const { data, error } = await supabase
-                .from('shared_books')
-                .select('count')
-                .limit(1);
-
-            return !error;
+            await db.collection('shared_books').limit(1).get();
+            return true;
         } catch (error) {
             console.error('Connection check failed:', error);
             return false;
@@ -1686,7 +1810,7 @@ openProgressModal(bookId) {
 
         try {
             // Sign out the user
-            await supabase.auth.signOut();
+            await auth.signOut();
 
             // Show access denied message
             ons.notification.alert({
@@ -1775,17 +1899,14 @@ async function signInWithGoogle() {
             loginButton.innerHTML = '<ons-icon icon="fa-spinner" class="fa-spin" style="margin-right: 8px;"></ons-icon>Signing in...';
         }
 
-        const { data, error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: 'https://agskanchana.github.io/book-journal/'
-            }
-        });
-
-        if (error) throw error;
+        const provider = new firebase.auth.GoogleAuthProvider();
+        // Always show the Google account chooser instead of silently re-using the
+        // account you're already signed into (lets you pick "Use another account").
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await auth.signInWithPopup(provider);
 
         // Note: The actual email validation happens in setupAuth()
-        // when the auth state changes after successful OAuth
+        // (onAuthStateChanged) after successful sign-in.
 
     } catch (error) {
         console.error('Error signing in:', error);
@@ -1807,8 +1928,7 @@ async function signInWithGoogle() {
 
 async function signOut() {
     try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
+        await auth.signOut();
 
         hideUserMenu();
     } catch (error) {
@@ -1903,28 +2023,48 @@ function clearAddForm() {
 }
 
 // Section Toggle Functions
-function showReadingSection() {
-    const readingSection = document.getElementById('reading-section');
-    const librarySection = document.getElementById('library-section');
-    const readingToggle = document.getElementById('readingToggle');
-    const libraryToggle = document.getElementById('libraryToggle');
+function setActiveSection(section) {
+    const sections = {
+        reading: document.getElementById('reading-section'),
+        library: document.getElementById('library-section'),
+        wishlist: document.getElementById('wishlist-section')
+    };
+    const toggles = {
+        reading: document.getElementById('readingToggle'),
+        library: document.getElementById('libraryToggle'),
+        wishlist: document.getElementById('wishlistToggle')
+    };
+    Object.keys(sections).forEach(key => {
+        if (sections[key]) sections[key].style.display = (key === section) ? 'block' : 'none';
+        if (toggles[key]) toggles[key].classList.toggle('active', key === section);
+    });
+}
 
-    if (readingSection) readingSection.style.display = 'block';
-    if (librarySection) librarySection.style.display = 'none';
-    if (readingToggle) readingToggle.classList.add('active');
-    if (libraryToggle) libraryToggle.classList.remove('active');
+function showReadingSection() {
+    setActiveSection('reading');
 }
 
 function showLibrarySection() {
-    const readingSection = document.getElementById('reading-section');
-    const librarySection = document.getElementById('library-section');
-    const readingToggle = document.getElementById('readingToggle');
-    const libraryToggle = document.getElementById('libraryToggle');
+    setActiveSection('library');
+}
 
-    if (readingSection) readingSection.style.display = 'none';
-    if (librarySection) librarySection.style.display = 'block';
-    if (readingToggle) readingToggle.classList.remove('active');
-    if (libraryToggle) libraryToggle.classList.add('active');
+function showWishlistSection() {
+    setActiveSection('wishlist');
+    if (window.bookJournal) window.bookJournal.loadWishlist();
+}
+
+function openWishlistModal(id = null) {
+    if (window.bookJournal) window.bookJournal.openWishlistModal(id);
+}
+
+function saveWishlistItem() {
+    if (window.bookJournal) window.bookJournal.saveWishlistItem();
+}
+
+function hideWishlistModal() {
+    const modal = document.getElementById('wishlistModal');
+    if (modal) modal.style.display = 'none';
+    if (window.bookJournal) window.bookJournal.editingWishlistId = null;
 }
 
 // User Menu Functions
@@ -1935,12 +2075,12 @@ function showStats() {
 
         // Books that user is tracking
         const trackedBooks = window.bookJournal.books.filter(book =>
-            book.hasProgress || book.created_by === window.bookJournal.currentUser.id
+            book.hasProgress || book.created_by === window.bookJournal.currentUser.uid
         );
 
         // Books that user hasn't started tracking yet
         const untrackedBooks = window.bookJournal.books.filter(book =>
-            !book.hasProgress && book.created_by !== window.bookJournal.currentUser.id
+            !book.hasProgress && book.created_by !== window.bookJournal.currentUser.uid
         );
 
         const personalNotRead = trackedBooks.filter(b => b.status === 'Not Read').length;

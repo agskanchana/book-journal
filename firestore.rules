@@ -1,0 +1,54 @@
+rules_version = '2';
+
+// Firestore Security Rules for Book Journal.
+// These replace Supabase's Row Level Security. This is the REAL access control —
+// the client-side email allowlist in main-script.js is only for friendly UX.
+//
+// Deploy: paste into Firebase Console -> Firestore Database -> Rules -> Publish,
+// or run `firebase deploy --only firestore:rules` if you use the Firebase CLI.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Private two-person app: only these verified emails may touch any data.
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+             'sanda.wijekoon7@gmail.com',
+             'agskanchana@gmail.com'
+           ];
+    }
+
+    // shared_books: any allowlisted user can read; only the creator can write/delete.
+    match /shared_books/{bookId} {
+      allow read:          if isAllowed();
+      allow create:        if isAllowed() && request.resource.data.created_by == request.auth.uid;
+      allow update, delete: if isAllowed() && resource.data.created_by == request.auth.uid;
+    }
+
+    // user_reading_progress: owner-only. Doc id is `${uid}_${bookId}`.
+    // NOTE: list queries MUST be constrained with where('user_id','==',uid)
+    // or they will be denied (loadBooks does this).
+    match /user_reading_progress/{progressId} {
+      allow read:          if isAllowed() && resource.data.user_id == request.auth.uid;
+      allow create:        if isAllowed() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAllowed() && resource.data.user_id == request.auth.uid;
+    }
+
+    // user_profiles: doc id == uid. Readable by both users (to show "added by");
+    // writable only by the owner.
+    match /user_profiles/{userId} {
+      allow read:  if isAllowed();
+      allow write: if isAllowed() && userId == request.auth.uid;
+    }
+
+    // wishlist: global/shared. Any allowlisted user can read everyone's items;
+    // only the creator can add/edit/delete their own.
+    match /wishlist/{itemId} {
+      allow read:          if isAllowed();
+      allow create:        if isAllowed() && request.resource.data.created_by == request.auth.uid;
+      allow update, delete: if isAllowed() && resource.data.created_by == request.auth.uid;
+    }
+  }
+}
