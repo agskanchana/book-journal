@@ -1405,4 +1405,17 @@ ons-modal[style*="block"] {
     }
 }
 
+/* Library filter dropdowns (status / author / sort) */
+.filter-select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 6px;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.9rem;
+    color: #333;
+    box-sizing: border-box;
+}
+
 /* ...rest of existing styles... */

@@ -160,6 +160,33 @@
                         </ons-col>
                     </ons-row>
 
+                    <!-- Status / Author / Sort filters -->
+                    <ons-row>
+                        <ons-col width="33%">
+                            <select id="statusFilter" class="filter-select">
+                                <option value="">All Statuses</option>
+                                <option value="Reading">📖 Reading</option>
+                                <option value="Read">✅ Read</option>
+                                <option value="Not Read">📚 Not Read</option>
+                                <option value="Available">🔖 Available to start</option>
+                            </select>
+                        </ons-col>
+                        <ons-col width="34%">
+                            <select id="authorFilter" class="filter-select">
+                                <option value="">All Authors</option>
+                            </select>
+                        </ons-col>
+                        <ons-col width="33%">
+                            <select id="sortBy" class="filter-select">
+                                <option value="newest">🆕 Newest</option>
+                                <option value="oldest">📜 Oldest</option>
+                                <option value="title-asc">🔤 Title A–Z</option>
+                                <option value="title-desc">🔤 Title Z–A</option>
+                                <option value="author-asc">👤 Author A–Z</option>
+                            </select>
+                        </ons-col>
+                    </ons-row>
+
                     <!-- Pagination Controls -->
                     <div class="pagination-controls">
                         <div class="pagination-info">
@@ -426,6 +453,7 @@
                                     min="1"
                                     float
                                     style="width: 100%;">
+                                </ons-input>
                             </div>
                         </ons-list-item>
                     </div>

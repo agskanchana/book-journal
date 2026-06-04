@@ -32,6 +32,15 @@ if (!auth || !db) {
     console.error('❌ Firebase failed to initialize. Please check that the Firebase compat libraries are loaded in index.html.');
 }
 
+// Enable offline persistence so the PWA keeps working without a connection.
+// Must run before any other Firestore call (it does, this is at load time).
+if (db) {
+    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+        // failed-precondition = multiple tabs open; unimplemented = unsupported browser
+        console.warn('Firestore offline persistence unavailable:', err && err.code);
+    });
+}
+
 class BookJournal {
     constructor() {
         this.books = [];
@@ -159,13 +168,15 @@ class BookJournal {
         searchInput.addEventListener('input', this.searchHandler);
     }
 
-    // Category filter listener
-    const categoryFilter = document.getElementById('categoryFilter');
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', () => {
-            this.handleSearchAndFilter();
-        });
-    }
+    // Category / status / author / sort filter listeners
+    ['categoryFilter', 'statusFilter', 'authorFilter', 'sortBy'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                this.handleSearchAndFilter();
+            });
+        }
+    });
 
     // Setup pagination button listeners
     this.setupPaginationListeners();
@@ -311,22 +322,61 @@ class BookJournal {
     handleSearchAndFilter() {
         const searchValue = document.getElementById('searchInput')?.value.toLowerCase() || '';
         const categoryValue = document.getElementById('categoryFilter')?.value || '';
+        const statusValue = document.getElementById('statusFilter')?.value || '';
+        const authorValue = document.getElementById('authorFilter')?.value || '';
+        const sortValue = document.getElementById('sortBy')?.value || 'newest';
 
-        // Filter books based on search and category
+        // Filter books based on search + category + author + status
         this.filteredBooks = this.books.filter(book => {
             const matchesSearch = !searchValue ||
-                book.name.toLowerCase().includes(searchValue) ||
-                book.author.toLowerCase().includes(searchValue) ||
+                (book.name && book.name.toLowerCase().includes(searchValue)) ||
+                (book.author && book.author.toLowerCase().includes(searchValue)) ||
                 (book.category && book.category.toLowerCase().includes(searchValue));
 
             const matchesCategory = !categoryValue || book.category === categoryValue;
+            const matchesAuthor = !authorValue || book.author === authorValue;
+            const matchesStatus = !statusValue || this.bookMatchesStatus(book, statusValue);
 
-            return matchesSearch && matchesCategory;
+            return matchesSearch && matchesCategory && matchesAuthor && matchesStatus;
         });
+
+        this.sortBooks(this.filteredBooks, sortValue);
 
         // Reset to first page when filtering
         this.currentPage = 1;
         this.renderPaginatedBooks();
+    }
+
+    bookMatchesStatus(book, statusValue) {
+        switch (statusValue) {
+            case 'Reading':   return book.status === 'Reading';
+            case 'Read':      return book.status === 'Read';
+            case 'Not Read':  return book.hasProgress && book.status === 'Not Read';
+            case 'Available': return !book.hasProgress; // not yet tracked by you
+            default:          return true;
+        }
+    }
+
+    sortBooks(arr, sortValue) {
+        switch (sortValue) {
+            case 'oldest':     arr.sort((a, b) => (a.created_at || 0) - (b.created_at || 0)); break;
+            case 'title-asc':  arr.sort((a, b) => (a.name || '').localeCompare(b.name || '')); break;
+            case 'title-desc': arr.sort((a, b) => (b.name || '').localeCompare(a.name || '')); break;
+            case 'author-asc': arr.sort((a, b) => (a.author || '').localeCompare(b.author || '')); break;
+            case 'newest':
+            default:           arr.sort((a, b) => (b.created_at || 0) - (a.created_at || 0)); break;
+        }
+    }
+
+    populateAuthorFilter() {
+        const authorFilter = document.getElementById('authorFilter');
+        if (!authorFilter) return;
+        const current = authorFilter.value;
+        const authors = [...new Set(this.books.map(b => b.author).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b));
+        authorFilter.innerHTML = '<option value="">All Authors</option>' +
+            authors.map(a => `<option value="${this.escapeHtml(a)}">${this.escapeHtml(a)}</option>`).join('');
+        if (current && authors.includes(current)) authorFilter.value = current;
     }
 
     renderPaginatedBooks() {
@@ -513,18 +563,12 @@ class BookJournal {
         }
 
         try {
-            // Show loading state - with timeout protection
+            // Show loading state
             if (saveButton) {
                 saveButton.disabled = true;
                 saveButton.textContent = 'Adding...';
                 saveButton.style.opacity = '0.6';
             }
-
-            // Set a timeout to prevent infinite hanging
-            const timeoutId = setTimeout(() => {
-                console.error('Add book operation timed out');
-                throw new Error('Operation timed out. Please try again.');
-            }, 30000); // 30 second timeout
 
             console.log('=== ADD BOOK DEBUG ===');
             console.log('Form data:', formData);
@@ -597,9 +641,6 @@ class BookJournal {
 
             console.log('Progress added successfully');
 
-            // Clear the timeout since we succeeded
-            clearTimeout(timeoutId);
-
             ons.notification.alert({
                 message: '✅ Book added successfully!',
                 title: 'Success',
@@ -609,14 +650,7 @@ class BookJournal {
             // Close modal and reload
             hideAddBookModal();
 
-            // Force reload with timeout protection
-            const loadTimeout = setTimeout(() => {
-                console.warn('Load books taking too long, forcing UI update');
-                this.displayBooks(); // Display current books without reload
-            }, 5000);
-
             await this.loadBooks();
-            clearTimeout(loadTimeout);
 
             console.log('=== ADD BOOK COMPLETED ===');
 
@@ -847,6 +881,7 @@ class BookJournal {
                     cover_url: book.cover_url,
                     total_pages: book.total_pages,
                     created_by: book.created_by,
+                    created_at: book.created_at ? book.created_at.toMillis() : 0,
                     // Creator info
                     creator_name: creator.full_name ||
                                  (creator.email ? creator.email.split('@')[0] : null) ||
@@ -924,12 +959,10 @@ class BookJournal {
         // Always show all currently reading books (no pagination for this section)
         this.renderBooks(currentlyReading, 'currentlyReadingBooks');
 
-        // Initialize filtered books for library section
-        this.filteredBooks = this.books;
-        this.currentPage = 1;
-
-        // Render paginated library view
-        this.renderPaginatedBooks();
+        // Refresh the author dropdown, then apply current search/filters/sort
+        // (routing through handleSearchAndFilter keeps active filters after reloads)
+        this.populateAuthorFilter();
+        this.handleSearchAndFilter();
     }
 
     renderBooks(books, containerId) {
@@ -955,8 +988,9 @@ class BookJournal {
     }
 
     createBookCard(book) {
-        const coverImage = book.cover_url
-            ? `<img src="${book.cover_url}" alt="Book cover">`
+        const coverUrl = this.safeUrl(book.cover_url);
+        const coverImage = coverUrl
+            ? `<img src="${this.escapeHtml(coverUrl)}" alt="Book cover">`
             : '📚';
 
         const progressInfo = book.status === 'Reading' && book.current_page && book.total_pages
@@ -975,15 +1009,15 @@ class BookJournal {
     // Show both book summary and personal notes
     const notes = book.summary || book.personal_notes
         ? `<div class="book-summary">
-            ${book.summary ? `<div><strong>About:</strong> ${book.summary}</div>` : ''}
-            ${book.personal_notes ? `<div><strong>My Notes:</strong> ${book.personal_notes}</div>` : ''}
+            ${book.summary ? `<div><strong>About:</strong> ${this.escapeHtml(book.summary)}</div>` : ''}
+            ${book.personal_notes ? `<div><strong>My Notes:</strong> ${this.escapeHtml(book.personal_notes)}</div>` : ''}
            </div>`
         : '';
 
     // Show who added the book with actual name
     const addedBy = book.created_by !== this.currentUser.uid
         ? `<div class="book-meta">
-             <small>👤 Added by ${book.creator_name}</small>
+             <small>👤 Added by ${this.escapeHtml(book.creator_name)}</small>
            </div>`
         : `<div class="book-meta">
              <small>✨ Added by you</small>
@@ -1012,12 +1046,12 @@ class BookJournal {
                     ${coverImage}
                 </div>
                 <div class="book-info">
-                    <h3 class="book-title">${book.name}</h3>
-                    <p class="book-author">by ${book.author}</p>
+                    <h3 class="book-title">${this.escapeHtml(book.name)}</h3>
+                    <p class="book-author">by ${this.escapeHtml(book.author)}</p>
 
                     ${book.category || book.purchase_date ? `<div class="book-meta">
-                        ${book.category ? `<span class="meta-tag">${book.category}</span>` : ''}
-                        ${book.purchase_date ? `<small>📅 ${new Date(book.purchase_date).toLocaleDateString()}</small>` : ''}
+                        ${book.category ? `<span class="meta-tag">${this.escapeHtml(book.category)}</span>` : ''}
+                        ${book.purchase_date ? `<small>📅 ${this.escapeHtml(new Date(book.purchase_date).toLocaleDateString())}</small>` : ''}
                     </div>` : ''}
 
                     ${addedBy}
@@ -1026,8 +1060,8 @@ class BookJournal {
                 </div>
             </div>
             <div class="book-actions">
-                <div class="status-badge status-${book.status.toLowerCase().replace(' ', '-')}">
-                    ${book.status}
+                <div class="status-badge status-${String(book.status).toLowerCase().replace(' ', '-')}">
+                    ${this.escapeHtml(book.status)}
                 </div>
                 ${book.status === 'Reading' ? `
                 <button class="action-btn btn-progress" data-action="progress" data-book-id="${book.id}">
@@ -1624,7 +1658,8 @@ openProgressModal(bookId) {
                 ? `<div class="book-summary"><div>${this.escapeHtml(item.note)}</div></div>`
                 : '';
             const actions = isOwner
-                ? `<button class="action-btn btn-edit" data-wish-action="edit" data-wish-id="${item.id}">✏️ Edit</button>
+                ? `<button class="action-btn btn-start" data-wish-action="acquire" data-wish-id="${item.id}">📚 Got it!</button>
+                   <button class="action-btn btn-edit" data-wish-action="edit" data-wish-id="${item.id}">✏️ Edit</button>
                    <button class="action-btn btn-delete" data-wish-action="delete" data-wish-id="${item.id}">🗑️ Delete</button>`
                 : '';
 
@@ -1748,6 +1783,60 @@ openProgressModal(bookId) {
         e.stopPropagation();
         if (action === 'edit') this.openWishlistModal(id);
         else if (action === 'delete') this.deleteWishlistItem(id);
+        else if (action === 'acquire') this.moveWishlistToLibrary(id);
+    }
+
+    // "Got it!" — turn a wishlist item into a tracked book in the shared library.
+    async moveWishlistToLibrary(id) {
+        const item = this.wishlist.find(w => String(w.id) === String(id));
+        if (!item || item.created_by !== this.currentUser.uid) {
+            this.showNotification('You can only move your own wishlist items', 'error');
+            return;
+        }
+
+        ons.notification.confirm({
+            message: `📚 Add "${item.title}" to your library and remove it from the wishlist?`,
+            title: 'Move to Library',
+            buttonLabels: ['Cancel', 'Add']
+        }).then(async (buttonIndex) => {
+            if (buttonIndex !== 1) return;
+            try {
+                const bookRef = db.collection('shared_books').doc();
+                await bookRef.set({
+                    name: item.title,
+                    author: item.author || 'Unknown',
+                    category: null,
+                    summary: item.note || null,
+                    total_pages: null,
+                    cover_url: null,
+                    created_by: this.currentUser.uid,
+                    created_at: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await db.collection('user_reading_progress')
+                    .doc(`${this.currentUser.uid}_${bookRef.id}`)
+                    .set({
+                        user_id: this.currentUser.uid,
+                        book_id: bookRef.id,
+                        status: 'Not Read',
+                        current_page: null,
+                        purchase_date: null,
+                        personal_notes: null,
+                        started_reading_at: null,
+                        finished_reading_at: null,
+                        created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                await db.collection('wishlist').doc(String(id)).delete();
+                await this.loadWishlist();
+                await this.loadBooks();
+                this.showNotification('📚 Added to your library! You can edit the page count there.', 'success');
+            } catch (error) {
+                console.error('Error moving wishlist item to library:', error);
+                this.showNotification('Error moving item to library', 'error');
+            }
+        });
     }
 
     // Escape user text before injecting into innerHTML.
@@ -1772,16 +1861,6 @@ openProgressModal(bookId) {
             if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
         } catch (e) {}
         return '';
-    }
-
-    async checkConnection() {
-        try {
-            await db.collection('shared_books').limit(1).get();
-            return true;
-        } catch (error) {
-            console.error('Connection check failed:', error);
-            return false;
-        }
     }
 
     // List of allowed emails

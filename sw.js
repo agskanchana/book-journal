@@ -1,4 +1,4 @@
-const CACHE_NAME = 'book-journal-v2.1.0';
+const CACHE_NAME = 'book-journal-v2.2.0';
 const OFFLINE_URL = './offline.html';
 
 // Files to cache for offline functionality
